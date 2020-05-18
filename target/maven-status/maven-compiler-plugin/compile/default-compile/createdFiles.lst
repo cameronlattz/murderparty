@@ -1,0 +1,8 @@
+com\cameronlattz\murderparty\models\MurderPartyPlayer.class
+com\cameronlattz\murderparty\models\Team.class
+com\cameronlattz\murderparty\models\Weapon.class
+com\cameronlattz\murderparty\CommandHelper.class
+com\cameronlattz\murderparty\models\Role.class
+com\cameronlattz\murderparty\MurderParty.class
+com\cameronlattz\murderparty\Configuration.class
+com\cameronlattz\murderparty\models\Map.class

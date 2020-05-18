@@ -1,0 +1,9 @@
+name: MurderParty
+version: 0.2.0
+main: com.cameronlattz.murderparty.MurderParty
+api-version: 1.15
+softdepend: [WorldEdit, WorldGuard]
+commands:
+  murderparty:
+    description: Murder Party
+    aliases: [mp, mP, Mp, MP]
