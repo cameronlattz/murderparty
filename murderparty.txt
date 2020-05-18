@@ -1,0 +1,73 @@
+test all commands
+update to 0.2.0
+make displayname optional
+make lore List<String>
+add disguises
+update to 0.3.0
+get roles working
+set up programmed roles
+update to 0.4.0
+get spawning/behaviors working
+update to 0.5.0
+mute in chat
+mute on discord
+update to 0.6.0
+
+world: world
+lobby: mplobby
+maps:
+  test:
+    display: Test Map
+    probability: 100
+    region: mptest
+teams:
+  bad:
+    display: Bad
+    probability: 100
+    firstSpawnPlayerCount: 2
+    spawnAfterPlayerCount: 4
+  solo:
+    display: Solo
+    probability: 50
+    firstSpawnPlayerCount: 5
+    spawnAfterPlayerCount: 5
+  good:
+    display: Good
+	probability: 100
+	firstSpawnPlayerCount: 1
+weapons:
+  knife:
+    display: Knife
+    material: stone_sword
+	drops: false
+    lore:
+      - Test line one
+      - Test line two
+  bow:
+    display: Bow
+    material: bow
+	drops: true
+    lore:
+      - Test line one
+      - Test line two
+    enchantments:
+      - Power 2
+    ammoMaterial: arrow
+    ammoCooldown: 10000
+roles:
+  murderer:
+    display: Murderer
+    team: bad
+    probability: 100
+    maxCount: 1
+    weapon: knife
+  detective:
+    display: Detective
+    team: good
+    probability: 100
+    maxCount: 1
+    weapon: bow
+  innocent:
+    display: Innocent
+    team: good
+    probability: 100

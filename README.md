@@ -1,2 +1,2 @@
-# murderparty
+# Murder Party
 Bukkit minigame plugin
