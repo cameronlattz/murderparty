@@ -1,16 +1,16 @@
 package com.cameronlattz.murderparty.models;
 
-import java.util.Arrays;
+import java.util.LinkedHashMap;
 import java.util.List;
 
 public class Team {
     private String _name;
     private String _displayName;
-    private int _probability;
-    private int _playersBeforeSpawn;
-    private int _playersPerSpawn;
+    private Integer _probability;
+    private Integer _playersBeforeSpawn;
+    private Integer _playersPerSpawn;
 
-    public Team(String name, String displayName, int probability, int playersBeforeSpawn, int playersPerSpawn) {
+    public Team(String name, String displayName, Integer probability, Integer playersBeforeSpawn, Integer playersPerSpawn) {
         _name = name;
         _displayName = displayName;
         _probability = probability;
@@ -26,8 +26,11 @@ public class Team {
 
     public int getProbability() { return _probability; }
 
-    public static List<String> getOptions() {
-        return Arrays.asList("Name", "Probability");
+    public static LinkedHashMap<String, String> getOptions() {
+        return new LinkedHashMap<String, String>() {{
+            put("name", "string");
+            put("probability", "integer");
+        }};
     }
 
     public static Team getByName(List<Team> teams, String name) {

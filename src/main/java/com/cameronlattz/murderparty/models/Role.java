@@ -1,18 +1,18 @@
 package com.cameronlattz.murderparty.models;
 
 import java.util.ArrayList;
-import java.util.Arrays;
+import java.util.LinkedHashMap;
 import java.util.List;
 
 public class Role {
     private String _name;
     private String _displayName;
     private Team _team;
-    private int _probability;
-    private int _maxCount;
+    private Integer _probability;
+    private Integer _maxCount;
     private Weapon _weapon;
 
-    public Role(String name, String displayName, Team team, int probability, int maxCount, Weapon weapon) {
+    public Role(String name, String displayName, Team team, Integer probability, Integer maxCount, Weapon weapon) {
         _name = name;
         _displayName = displayName;
         _team = team;
@@ -23,7 +23,7 @@ public class Role {
 
     public String getName() { return _name; }
 
-    public int getProbability() {
+    public Integer getProbability() {
         return _probability;
     }
 
@@ -42,8 +42,13 @@ public class Role {
         return info;
     }
 
-    public static List<String> getOptions() {
-        return Arrays.asList("Name", "Team", "Probability", "Weapon");
+    public static LinkedHashMap<String, String> getOptions() {
+        return new LinkedHashMap<String, String>() {{
+            put("name", "string");
+            put("team", "string");
+            put("probability", "integer");
+            put("weapon", "string");
+        }};
     }
 
     public static List<Role> getRolesInTeam(Team team, List<Role> roles) {

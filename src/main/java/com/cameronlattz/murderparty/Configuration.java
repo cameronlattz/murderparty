@@ -3,20 +3,18 @@ package com.cameronlattz.murderparty;
 import com.cameronlattz.murderparty.models.*;
 import com.sk89q.worldedit.bukkit.BukkitAdapter;
 import com.sk89q.worldguard.WorldGuard;
-import com.sk89q.worldguard.bukkit.WorldGuardPlugin;
+import com.sk89q.worldguard.protection.managers.RegionManager;
 import com.sk89q.worldguard.protection.regions.ProtectedRegion;
 import com.sk89q.worldguard.protection.regions.RegionContainer;
 import org.apache.commons.lang.StringUtils;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
-import org.bukkit.Server;
 import org.bukkit.World;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.enchantments.Enchantment;
 import org.bukkit.entity.Player;
-import org.bukkit.plugin.Plugin;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -24,7 +22,7 @@ import java.util.List;
 
 public class Configuration {
     public FileConfiguration _configuration;
-    WorldGuardPlugin _worldGuard;
+    RegionContainer _regionContainer;
     World _world;
     List<Map> _maps = new ArrayList<Map>();
     List<Team> _teams = new ArrayList<Team>();
@@ -36,7 +34,7 @@ public class Configuration {
         murderParty.saveDefaultConfig();
         _configuration = murderParty.getConfig();
         this.loadWorld();
-        this.loadWorldGuard(murderParty.getServer());
+        this.loadWorldGuard();
         this.loadMaps();
         this.loadTeams();
         this.loadWeapons();
@@ -125,7 +123,7 @@ public class Configuration {
         if (value == null) {
             return null;
         }
-        return Integer.parseInt((String)value);
+        return (Integer)value;
     }
 
     public String getString(String... keys) {
@@ -148,8 +146,24 @@ public class Configuration {
         return Boolean.parseBoolean((String)value);
     }
 
-    public void set(MurderParty murderParty, String path, String value) {
-        _configuration.set(path, value);
+    public String get(String path, String type) {
+        if (type == "integer") {
+            return Integer.toString(_configuration.getInt(path));
+        } else if (type == "boolean") {
+            return Boolean.toString(_configuration.getBoolean(path));
+        } else {
+            return _configuration.getString(path);
+        }
+    }
+
+    public void set(MurderParty murderParty, String path, String value, String type) {
+        if (type == "integer") {
+            _configuration.set(path, Integer.parseInt(value));
+        } else if (type == "boolean") {
+            _configuration.set(path, Boolean.parseBoolean(value));
+        } else {
+            _configuration.set(path, value);
+        }
         murderParty.saveConfig();
         murderParty.load();
     }
@@ -182,14 +196,14 @@ public class Configuration {
         if (getValue(path) == null) {
             return false;
         }
-        set(murderParty, path, null);
+        set(murderParty, path, null, null);
         return true;
     }
 
     private void loadWeapons() {
         List<String> weaponNames = this.getKeys("weapons");
         for (String weaponName : weaponNames) {
-            String displayName = this.getString("weapons", weaponName, "display");
+            String displayName = this.getString("weapons", weaponName, "name");
             Material material = Material.getMaterial(this.getString("weapons", weaponName, "material"));
             Boolean drops = this.getBoolean("weapons", weaponName, "drops");
             String lore = this.getString("weapons", weaponName, "lore");
@@ -209,10 +223,10 @@ public class Configuration {
     private void loadTeams() {
         List<String> teamNames = this.getKeys("teams");
         for (String teamName : teamNames) {
-            String displayName = this.getString("teams", teamName, "display");
-            int probability = this.getInt("teams", teamName, "probability");
-            int playersBefore = this.getInt("teams", teamName, "playersBeforeSpawn");
-            int playersPer = this.getInt("teams", teamName, "playersPerSpawn");
+            String displayName = this.getString("teams", teamName, "name");
+            Integer probability = this.getInt("teams", teamName, "probability");
+            Integer playersBefore = this.getInt("teams", teamName, "playersBeforeSpawn");
+            Integer playersPer = this.getInt("teams", teamName, "playersPerSpawn");
             _teams.add(new Team(teamName, displayName, probability, playersBefore, playersPer));
         }
     }
@@ -220,14 +234,12 @@ public class Configuration {
     public void loadRoles(List<Team> teams, List<Weapon> weapons) {
         List<String> roleNames = this.getKeys("roles");
         for (String roleName : roleNames) {
-            String displayName = this.getString("roles", roleName, "display");
+            String displayName = this.getString("roles", roleName, "name");
             Team team = Team.getByName(teams, this.getString("roles", roleName, "team"));
-            //int probability = this.getInt("roles", roleName, "probability");
-            int probability = 0;
-            //int maxCount = this.getInt("roles", roleName, "maxCount");
-            int maxCount = 0;
+            Integer probability = this.getInt("roles", roleName, "probability");
+            Integer maxCount = this.getInt("roles", roleName, "maxCount");
             String weaponName = this.getString("roles", roleName, "weapon");
-            int weaponIndex = weapons.indexOf(weaponName);
+            Integer weaponIndex = weapons.indexOf(weaponName);
             Weapon weapon = null;
             if (weaponIndex != -1) {
                 weapon = weapons.get(weapons.indexOf(weaponName));
@@ -237,22 +249,23 @@ public class Configuration {
     }
 
     public void loadMaps() {
-        List<String> mapNames = this.getKeys("maps");
-        for (String mapName : mapNames) {
-            String displayName = this.getString("maps", mapName, "display");
+        RegionManager regions = WorldGuard.getInstance().getPlatform().getRegionContainer().get(BukkitAdapter.adapt(_world));
+        for (String mapName : this.getKeys("maps")) {
+            String displayName = this.getString("maps", mapName, "name");
             Integer probability = this.getInt("maps", mapName, "probability");
             String regionName = this.getString("maps", mapName, "region");
-            if (mapName != null && probability != null && regionName != null) {
-                _maps.add(new Map(mapName, displayName, probability, regionName));
+            if (regionName != null) {
+                if (regions.hasRegion(regionName)) {
+                    if (displayName != null && probability != null) {
+                        _maps.add(new Map(mapName, displayName, probability, regions.getRegion(regionName), _world));
+                    }
+                }
             }
         }
     }
 
-    public void loadWorldGuard(Server server) {
-        Plugin pl = server.getPluginManager().getPlugin("WorldGuard");
-        if (pl != null && pl instanceof WorldGuardPlugin) {
-            _worldGuard = (WorldGuardPlugin) pl;
-        }
+    public void loadWorldGuard() {
+        _regionContainer = WorldGuard.getInstance().getPlatform().getRegionContainer();
     }
 
     public void loadWorld() {

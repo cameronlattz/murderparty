@@ -4,7 +4,9 @@ import org.bukkit.Material;
 import org.bukkit.enchantments.Enchantment;
 import org.bukkit.inventory.ItemStack;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
 
 public class Weapon {
     private String _name;
@@ -14,7 +16,7 @@ public class Weapon {
     private String _lore;
     private LinkedHashMap<Enchantment, Integer> _enchantments;
     private Material _ammoMaterial;
-    private int _ammoCooldown;
+    private Integer _ammoCooldown;
 
     public Weapon(String name, String displayName, Material material, boolean drops, String lore, LinkedHashMap<Enchantment, Integer> enchantments) {
         _name = name;
@@ -44,7 +46,12 @@ public class Weapon {
         return new ItemStack(_material);
     }
 
-    public static List<String> getOptions() {
-        return Arrays.asList("Name", "Material", "Lore", "Enchantments");
+    public static LinkedHashMap<String, String> getOptions() {
+        return new LinkedHashMap<String, String>() {{
+            put("name", "string");
+            put("material", "string");
+            put("lore", "string");
+            put("enchantments", "string");
+        }};
     }
 }

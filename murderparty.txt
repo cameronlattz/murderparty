@@ -1,7 +1,5 @@
-test all commands
-update to 0.2.0
+make reloading work
 make displayname optional
-make lore List<String>
 add disguises
 update to 0.3.0
 get roles working

@@ -1,5 +1,5 @@
 name: MurderParty
-version: 0.1.0
+version: 0.2.0
 main: com.cameronlattz.murderparty.MurderParty
 api-version: 1.15
 softdepend: [WorldEdit, WorldGuard]

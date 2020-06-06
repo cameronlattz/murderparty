@@ -10,6 +10,7 @@ import org.bukkit.entity.Player;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.LinkedHashMap;
 import java.util.List;
 
 public class CommandHelper {
@@ -47,7 +48,7 @@ public class CommandHelper {
                         int nameIndex = names.indexOf(args[2].toLowerCase());
                         if (nameIndex != -1) {
                             if (args.length == 4) {
-                                for (String option : getOptions(arg0)) {
+                                for (String option : getOptions(arg0).keySet()) {
                                     if (option.toLowerCase().startsWith(args[3].toLowerCase())) {
                                         autoCompletes.add(option);
                                     }
@@ -66,7 +67,8 @@ public class CommandHelper {
                     }
                 }
             } else if (args.length == 1)  {
-                List<String> commands = Arrays.asList("reload", "start", "end", "map", "role", "weapon");
+                List<String> commands = new ArrayList<String>(Arrays.asList("reload", "start", "end"));
+                commands.addAll(extendedCommands);
                 for (String command : commands) {
                     if (command.startsWith(args[0].toLowerCase())) {
                         autoCompletes.add(command);
@@ -79,14 +81,14 @@ public class CommandHelper {
 
     public static boolean onCommand(MurderParty murderParty, Configuration configuration, CommandSender sender, String[] args) {
         if (args.length == 0 && sender instanceof Player) {
-            List<String> messages = Arrays.asList(
-                    "/mp reload - Reload game",
-                    "/mp start - Start game",
-                    "/mp start [map name] - Start game",
-                    "/mp end - End game"
-            );
+            List<String> messages = new ArrayList<String>(Arrays.asList(
+                "/mp reload - Reload game",
+                "/mp start - Start game",
+                "/mp start [map name] - Start game",
+                "/mp end - End game"
+            ));
             for (String command : extendedCommands) {
-                messages.add("/mp " + command + " - List " + command + "commands");
+                messages.add("/mp " + command + " - List " + command + " commands");
             }
             sender.sendMessage(messages.toArray(new String[0]));
             return true;
@@ -120,6 +122,7 @@ public class CommandHelper {
                 String arg0upper = arg0.substring(0, 1).toUpperCase() + arg0.substring(1);
                 if (args.length == 1 && sender instanceof Player) {
                     String[] messages = {
+                            "Commands:",
                             "/mp " + arg0 + " list - List " + arg0 + "s",
                             "/mp " + arg0 + " add - Add new " + arg0,
                             "/mp " + arg0 + " edit - Edit " + arg0,
@@ -135,6 +138,7 @@ public class CommandHelper {
                 }
                 else if ("add".equals(args[1].toLowerCase())) {
                     if (args.length == 2 && sender instanceof Player) {
+                        sender.sendMessage("Command usage:");
                         sender.sendMessage("/mp " + arg0 + " add [" + arg0 + " name]");
                         return true;
                     } else if (args.length > 2) {
@@ -148,28 +152,31 @@ public class CommandHelper {
                 }
                 else if ("edit".equals(args[1].toLowerCase())) {
                     if (args.length == 2 && sender instanceof Player) {
+                        sender.sendMessage("Command usage:");
                         sender.sendMessage("/mp " + arg0 + " edit [" + arg0 + " name]");
                         return true;
                     } else if (args.length > 2) {
                         if (configuration.getKeys(arg0 + "s").contains(args[2])) {
                             if (args.length < 5 && sender instanceof Player) {
-                                List<String> options = getOptions(arg0);
+                                List<String> options = new ArrayList<String>(getOptions(arg0).keySet());
                                 String[] messages = new String[options.size()];
                                 for (int i = 0; i < messages.length; i++) {
                                     messages[i] = "/mp " + arg0 + " edit " + args[2] + " " + options.get(i) + " [value]";
                                 }
+                                sender.sendMessage("Command usage:");
                                 sender.sendMessage(messages);
                             } else {
-                                for (String option : getOptions(arg0)) {
+                                for (java.util.Map.Entry<String, String> entry : getOptions(arg0).entrySet()) {
+                                    String option = entry.getKey();
                                     if (option.toLowerCase().equals(args[3].toLowerCase())) {
                                         boolean set = true;
                                         if (extendedCommands.contains(args[3].toLowerCase())) {
                                             if (!configuration.getKeys(args[3].toLowerCase() + "s").contains(args[4].toLowerCase())) {
                                                 set = false;
-                                            };
+                                            }
                                         }
                                         if (set) {
-                                            configuration.set(murderParty, arg0 + "s." + args[2].toLowerCase() + "." + args[3].toLowerCase(), args[4]);
+                                            configuration.set(murderParty, arg0 + "s." + args[2].toLowerCase() + "." + args[3].toLowerCase(), args[4], entry.getValue());
                                             if (sender instanceof Player) {
                                                 sender.sendMessage(args[3].toLowerCase() + " set to " + args[4] + " for " + args[2].toLowerCase());
                                             }
@@ -186,29 +193,34 @@ public class CommandHelper {
                 }
                 else if ("info".equals(args[1].toLowerCase()) && sender instanceof Player) {
                     if (args.length == 2) {
+                        sender.sendMessage("Command usage:");
                         sender.sendMessage("/mp " + arg0 + " info [" + arg0 + " name]");
                     } else {
-                        List<String> options = getOptions(arg0);
-                        String[] messages = new String[options.size() + 1];
+                        List<String> messages = new ArrayList<String>();
                         if (configuration.getKeys(arg0 +"s").contains(args[2].toLowerCase())) {
-                            messages[0] = arg0upper + " '" + args[2] + "' information:";
-                            for (int i = 0; i < options.size(); i++) {
-                                String option = options.get(i);
-                                String value = configuration.getString(arg0 + "s." + args[2].toLowerCase() + "." + option.toLowerCase());
-                                messages[i + 1] = option + ": " + value;
+                            messages.add(arg0upper + " '" + args[2] + "' information:");
+                            for (java.util.Map.Entry<String, String> entry : getOptions(arg0).entrySet()) {
+                                String option = entry.getKey();
+                                String info = configuration.get(arg0 + "s." + args[2].toLowerCase() + "." + option.toLowerCase(), entry.getValue());
+                                if (info != null) {
+                                    messages.add(option + ": " + info);
+                                }
                             }
                         }
-                        sender.sendMessage(messages);
+                        sender.sendMessage(messages.toArray(new String[0]));
                     }
                     return true;
                 }
                 else if ("remove".equals(args[1].toLowerCase()) && sender instanceof Player) {
                     if (args.length == 2) {
+                        sender.sendMessage("Command usage:");
                         sender.sendMessage("/mp " + arg0 + " remove [" + arg0 + " name]");
                         return true;
                     } else if (args.length > 2) {
                         if (configuration.remove(murderParty, arg0 + "s." + args[2])) {
                             sender.sendMessage(arg0upper + " '" + args[2] + "' removed.");
+                        } else {
+                            sender.sendMessage(arg0upper + " '" + args[2] + "' not found.");
                         }
                         return true;
                     }
@@ -218,7 +230,7 @@ public class CommandHelper {
         return false;
     }
 
-    private static List<String> getOptions(String commandName) {
+    private static LinkedHashMap<String, String> getOptions(String commandName) {
         if (commandName.equals("map")) {
             return Map.getOptions();
         } else if (commandName.equals("role")) {
@@ -228,6 +240,6 @@ public class CommandHelper {
         } else if (commandName.equals("weapon")) {
             return Weapon.getOptions();
         }
-        return new ArrayList<String>();
+        return new LinkedHashMap<String, String>();
     }
 }
