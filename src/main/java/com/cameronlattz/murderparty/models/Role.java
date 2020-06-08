@@ -1,10 +1,12 @@
 package com.cameronlattz.murderparty.models;
 
+import org.bukkit.ChatColor;
+
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 
-public class Role {
+public class Role implements ObjectInterface {
     private String _name;
     private String _displayName;
     private Team _team;
@@ -33,12 +35,19 @@ public class Role {
 
     public Weapon getWeapon() { return _weapon; }
 
-    public String[] getInfo() {
-        String[] info = new String[4];
-        info[0] = "Name: " + _name;
-        info[1] = "Team: " + _team;
-        info[2] = "Probability: " + _probability;
-        info[3] = "Weapon: " + _weapon.getName();
+    public ChatColor getColor() { return _team.getColor(); }
+
+    public Integer getMaxCount() { return _maxCount; }
+
+    public List<String> getInfo() {
+        List<String> info = new ArrayList<String>();
+        info.add("  name: " + _displayName);
+        info.add("  team: " + _team.getName());
+        info.add("  probability: " + _probability);
+        info.add("  max count: " + _maxCount);
+        if (_weapon != null) {
+            info.add("  weapon: " + _weapon.getName());
+        }
         return info;
     }
 
@@ -47,6 +56,7 @@ public class Role {
             put("name", "string");
             put("team", "string");
             put("probability", "integer");
+            put("maxCount", "integer");
             put("weapon", "string");
         }};
     }

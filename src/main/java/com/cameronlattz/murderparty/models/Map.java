@@ -10,18 +10,18 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 
-public class Map {
+public class Map implements ObjectInterface {
     private String _name;
     private String _displayName;
     private Integer _probability;
-    private String _regionName;
-    private List<Location> _spawnLocations;
+    private ProtectedRegion _region;
+    private List<Location> _spawnLocations = new ArrayList<Location>();
 
     public Map(String name, String displayName, Integer probability, ProtectedRegion region, World world) {
         _name = name;
         _displayName = displayName;
         _probability = probability;
-        _regionName = region.getId();
+        _region = region;
         int minX = region.getMinimumPoint().getBlockX();
         int minY = region.getMinimumPoint().getBlockY();
         int minZ = region.getMinimumPoint().getBlockZ();
@@ -33,8 +33,7 @@ public class Map {
                 for(int z = minZ; z < maxZ; z++) {
                     Block block =  world.getBlockAt(x,y,z);
                     if (block.getType() == Material.JIGSAW) {
-                        Location w = new Location(world, x, y, z);
-                        //_spawnLocations.add(new Location(world, x, y, z));
+                        _spawnLocations.add(new Location(world, x, y, z));
                     }
                 }
             }
@@ -45,20 +44,20 @@ public class Map {
 
     public Integer getProbability() { return _probability; }
 
-    public List<Location> getSpawnLocations() { return _spawnLocations; }
+    public List<Location> getSpawnLocations() { return new ArrayList<Location>(_spawnLocations); }
 
-    public String getRegionName() { return _regionName; }
+    public ProtectedRegion getRegion() { return _region; }
 
-    public String[] getInfo() {
+    public List<String> getInfo() {
         List<String> info = new ArrayList<String>();
-        info.add("Name: " + _name);
-        info.add("Probability: " + _probability);
-        info.add("Region: " + _regionName);
-        info.add("Spawn locations:");
+        info.add("  name: " + _displayName);
+        info.add("  probability: " + _probability);
+        info.add("  region: " + _region.getId());
+        info.add("  spawn locations:");
         for (Location s : _spawnLocations) {
             info.add("   -" + s.getBlockX() + ", " + s.getBlockY() + ", " + s.getBlockZ());
         }
-        return info.toArray(new String[0]);
+        return info;
     }
 
     public static LinkedHashMap<String, String> getOptions() {

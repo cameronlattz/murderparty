@@ -8,7 +8,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 
-public class Weapon {
+public class Weapon implements ObjectInterface {
     private String _name;
     private String _displayName;
     private Material _material;
@@ -29,16 +29,23 @@ public class Weapon {
 
     public String getName() { return _name; }
 
-    public String[] getInfo() {
+    public List<String> getInfo() {
         List<String> info = new ArrayList<String>();
-        info.add("Name: " + _name);
-        info.add("Material: " + _material.name());
-        info.add("Lore: " + _lore);
-        info.add("Enchantments: ");
-        for (java.util.Map.Entry<Enchantment, Integer> entry : _enchantments.entrySet()) {
-            info.add("   -" + entry.getKey().toString() + " " + entry.getValue());
+        info.add("  name: " + _displayName);
+        info.add("  drops: " + _drops);
+        if (_material != null) {
+            info.add("  material: " + _material.name());
         }
-        return info.toArray(new String[0]);
+        if (_lore != null) {
+            info.add("  lore: " + _lore);
+        }
+        if (_enchantments.size() > 0) {
+            info.add("  enchantments: ");
+            for (java.util.Map.Entry<Enchantment, Integer> entry : _enchantments.entrySet()) {
+                info.add("   -" + entry.getKey().toString() + " " + entry.getValue());
+            }
+        }
+        return info;
     }
 
     public ItemStack getItemStack() {

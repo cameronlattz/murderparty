@@ -1,11 +1,12 @@
-make reloading work
-make displayname optional
-add disguises
+get basic game starting
 update to 0.3.0
 get roles working
 set up programmed roles
+add disguises
 update to 0.4.0
 get spawning/behaviors working
+set permissions
+make reloading work
 update to 0.5.0
 mute in chat
 mute on discord
@@ -15,24 +16,28 @@ world: world
 lobby: mplobby
 maps:
   test:
-    display: Test Map
+    display: Test Hell
     probability: 100
-    region: mptest
+    region: testhell
 teams:
   bad:
     display: Bad
     probability: 100
-    firstSpawnPlayerCount: 2
-    spawnAfterPlayerCount: 4
+    playersBeforeSpawn: 2
+    playersPerSpawn: 4
+    color: RED
   solo:
     display: Solo
     probability: 50
-    firstSpawnPlayerCount: 5
-    spawnAfterPlayerCount: 5
+    playersBeforeSpawn: 5
+    playersPerSpawn: 5
+    color: YELLOW
   good:
     display: Good
 	probability: 100
-	firstSpawnPlayerCount: 1
+	playersBeforeSpawn: 1
+	playersPerSpawn: 1
+	color: GREEN
 weapons:
   knife:
     display: Knife
@@ -50,8 +55,6 @@ weapons:
       - Test line two
     enchantments:
       - Power 2
-    ammoMaterial: arrow
-    ammoCooldown: 10000
 roles:
   murderer:
     display: Murderer

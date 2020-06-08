@@ -5,7 +5,6 @@ import com.sk89q.worldedit.bukkit.BukkitAdapter;
 import com.sk89q.worldguard.WorldGuard;
 import com.sk89q.worldguard.protection.managers.RegionManager;
 import com.sk89q.worldguard.protection.regions.ProtectedRegion;
-import com.sk89q.worldguard.protection.regions.RegionContainer;
 import org.apache.commons.lang.StringUtils;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
@@ -22,13 +21,13 @@ import java.util.List;
 
 public class Configuration {
     public FileConfiguration _configuration;
-    RegionContainer _regionContainer;
+    RegionManager _regionManager;
     World _world;
     List<Map> _maps = new ArrayList<Map>();
     List<Team> _teams = new ArrayList<Team>();
     List<Weapon> _weapons = new ArrayList<Weapon>();
     List<Role> _roles = new ArrayList<Role>();
-    String _lobbyRegionName;
+    ProtectedRegion _lobbyRegion;
 
     public Configuration(MurderParty murderParty) {
         murderParty.saveDefaultConfig();
@@ -38,66 +37,105 @@ public class Configuration {
         this.loadMaps();
         this.loadTeams();
         this.loadWeapons();
-        this.loadRoles(_teams, _weapons);
-        _lobbyRegionName = this.getString("lobby");
+        this.loadRoles();
+        String lobbyRegionName = this.getString("lobby");
+        _lobbyRegion = this.getRegion(lobbyRegionName);
     }
 
     public World getWorld() { return _world; }
 
+    public ObjectInterface getObject(String type, String name) {
+        if (type.equals("map")) {
+            return this.getMap(name);
+        } else if (type.equals("role")) {
+            return this.getRole(name);
+        } else if (type.equals("team")) {
+            return this.getTeam(name);
+        } else if (type.equals("weapon")) {
+            return this.getWeapon(name);
+        }
+        return null;
+    }
+
+    public List<String> getInfo(String type, String name) {
+        ObjectInterface obj = this.getObject(type, name);
+        if (obj == null) {
+            return null;
+        }
+        return obj.getInfo();
+    }
+
     public Map getMap(String name) {
         for (Map map : _maps) {
-            if (map.getName() == name) {
+            if (map.getName().equals(name)) {
                 return map;
             }
         }
         return null;
     }
 
-    public List<Map> getMaps() { return _maps; }
+    public List<Map> getMaps() {
+        return _maps;
+    }
 
     public Role getRole(String name) {
         for (Role role : _roles) {
-            if (role.getName() == name) {
+            if (role.getName().equals(name)) {
                 return role;
             }
         }
         return null;
     }
 
-    public List<Role> getRoles() { return _roles; }
+    public List<Role> getRolesInTeam(Team team) {
+        List<Role> roles = new ArrayList<Role>();
+        for (Role role : _roles) {
+            if (role.getTeam() == team) {
+                roles.add(role);
+            }
+        }
+        return roles;
+    }
 
-    public List<Team> getTeams() { return _teams; }
+    public Team getTeam(String name) {
+        for (Team team : _teams) {
+            if (team.getName().equals(name)) {
+                return team;
+            }
+        }
+        return null;
+    }
+
+    public List<Team> getTeams() {
+        return _teams;
+    }
 
     public Weapon getWeapon(String name) {
         for (Weapon weapon : _weapons) {
-            if (weapon.getName() == name) {
+            if (weapon.getName().equals(name)) {
                 return weapon;
             }
         }
         return null;
     }
 
-    public List<Weapon> getWeapons() { return _weapons; }
-
-    public RegionContainer getWorldGuardRegionContainer() {
-        return WorldGuard.getInstance().getPlatform().getRegionContainer();
-    }
-
-    public String getLobbyRegionName() { return _lobbyRegionName; }
+    public ProtectedRegion getLobbyRegion() { return _lobbyRegion; }
 
     public ProtectedRegion getRegion(String regionName) {
-        return this.getWorldGuardRegionContainer().get(BukkitAdapter.adapt(_world)).getRegion(regionName);
+        return _regionManager.getRegion(regionName);
     }
 
     public List<Player> getPlayers(ProtectedRegion region) {
         List<Player> playersInWorld = _world.getPlayers();
         List<Player> playersInRegion = new ArrayList<Player>();
-        for (Player player : playersInWorld) {
-            int x = player.getLocation().getBlockX();
-            int y = player.getLocation().getBlockY();
-            int z = player.getLocation().getBlockZ();
-            if (region.contains(x, y, z)) {
-                playersInRegion.add(player);
+        if (region != null) {
+            for (Player player : playersInWorld) {
+                int x = player.getLocation().getBlockX();
+                int y = player.getLocation().getBlockY();
+                int z = player.getLocation().getBlockZ();
+                if (region.contains(x, y, z)) {
+                    playersInRegion.add(player);
+                }
             }
         }
         return playersInRegion;
@@ -138,28 +176,44 @@ public class Configuration {
         return new ArrayList<String>();
     }
 
-    public boolean getBoolean(String... keys) {
+    public Boolean getNullableBoolean(String... keys) {
         Object value = this.getValue(keys);
         if (value == null) {
-            return false;
+            return null;
         }
-        return Boolean.parseBoolean((String)value);
+        return (Boolean)value;
+    }
+
+    public boolean getBoolean(boolean defaultValue, String... keys) {
+        Object value = this.getValue(keys);
+        if (value == null) {
+            return defaultValue;
+        }
+        return (Boolean)value;
     }
 
     public String get(String path, String type) {
-        if (type == "integer") {
-            return Integer.toString(_configuration.getInt(path));
-        } else if (type == "boolean") {
-            return Boolean.toString(_configuration.getBoolean(path));
+        if (type.equals("integer")) {
+            Integer integer = this.getInt(path);
+            if (integer == null) {
+                return null;
+            }
+            return Integer.toString(integer);
+        } else if (type.equals("boolean")) {
+            Boolean bool = this.getNullableBoolean(path);
+            if (bool == null) {
+                return null;
+            }
+            return Boolean.toString(bool);
         } else {
-            return _configuration.getString(path);
+            return this.getString(path);
         }
     }
 
     public void set(MurderParty murderParty, String path, String value, String type) {
-        if (type == "integer") {
+        if (type.equals("integer")) {
             _configuration.set(path, Integer.parseInt(value));
-        } else if (type == "boolean") {
+        } else if (type.equals("boolean")) {
             _configuration.set(path, Boolean.parseBoolean(value));
         } else {
             _configuration.set(path, value);
@@ -204,8 +258,9 @@ public class Configuration {
         List<String> weaponNames = this.getKeys("weapons");
         for (String weaponName : weaponNames) {
             String displayName = this.getString("weapons", weaponName, "name");
-            Material material = Material.getMaterial(this.getString("weapons", weaponName, "material"));
-            Boolean drops = this.getBoolean("weapons", weaponName, "drops");
+            String materialName = this.getString("weapons", weaponName, "material");
+            Material material = Material.matchMaterial(materialName);
+            boolean drops = this.getBoolean(false, "weapons", weaponName, "drops");
             String lore = this.getString("weapons", weaponName, "lore");
             List<String> enchantmentStrings = this.getStringList("weapons", weaponName, "enchantments");
             LinkedHashMap<Enchantment, Integer> enchantments = new LinkedHashMap<Enchantment, Integer>();
@@ -224,48 +279,47 @@ public class Configuration {
         List<String> teamNames = this.getKeys("teams");
         for (String teamName : teamNames) {
             String displayName = this.getString("teams", teamName, "name");
+            String color = this.getString("teams", teamName, "color");
             Integer probability = this.getInt("teams", teamName, "probability");
             Integer playersBefore = this.getInt("teams", teamName, "playersBeforeSpawn");
             Integer playersPer = this.getInt("teams", teamName, "playersPerSpawn");
-            _teams.add(new Team(teamName, displayName, probability, playersBefore, playersPer));
+            boolean canKillTeammates = this.getBoolean(true, "teams", teamName, "canKillTeammates");
+            if (displayName != null && color != null &&  probability != null && playersBefore != null && playersPer != null) {
+                _teams.add(new Team(teamName, displayName, color, probability, playersBefore, playersPer, canKillTeammates));
+            }
         }
     }
 
-    public void loadRoles(List<Team> teams, List<Weapon> weapons) {
+    public void loadRoles() {
         List<String> roleNames = this.getKeys("roles");
         for (String roleName : roleNames) {
             String displayName = this.getString("roles", roleName, "name");
-            Team team = Team.getByName(teams, this.getString("roles", roleName, "team"));
             Integer probability = this.getInt("roles", roleName, "probability");
             Integer maxCount = this.getInt("roles", roleName, "maxCount");
-            String weaponName = this.getString("roles", roleName, "weapon");
-            Integer weaponIndex = weapons.indexOf(weaponName);
-            Weapon weapon = null;
-            if (weaponIndex != -1) {
-                weapon = weapons.get(weapons.indexOf(weaponName));
+            Weapon weapon = this.getWeapon(this.getString("roles", roleName, "weapon"));
+            Team team = this.getTeam(this.getString("roles", roleName, "team"));
+            if (displayName != null && team != null && probability != null) {
+                _roles.add(new Role(roleName, displayName, team, probability, maxCount, weapon));
             }
-            _roles.add(new Role(roleName, displayName, team, probability, maxCount, weapon));
         }
     }
 
     public void loadMaps() {
-        RegionManager regions = WorldGuard.getInstance().getPlatform().getRegionContainer().get(BukkitAdapter.adapt(_world));
         for (String mapName : this.getKeys("maps")) {
             String displayName = this.getString("maps", mapName, "name");
             Integer probability = this.getInt("maps", mapName, "probability");
             String regionName = this.getString("maps", mapName, "region");
             if (regionName != null) {
-                if (regions.hasRegion(regionName)) {
-                    if (displayName != null && probability != null) {
-                        _maps.add(new Map(mapName, displayName, probability, regions.getRegion(regionName), _world));
-                    }
+                ProtectedRegion region = this.getRegion(regionName);
+                if (displayName != null && probability != null && region != null) {
+                    _maps.add(new Map(mapName, displayName, probability, region, _world));
                 }
             }
         }
     }
 
     public void loadWorldGuard() {
-        _regionContainer = WorldGuard.getInstance().getPlatform().getRegionContainer();
+        _regionManager = WorldGuard.getInstance().getPlatform().getRegionContainer().get(BukkitAdapter.adapt(_world));
     }
 
     public void loadWorld() {

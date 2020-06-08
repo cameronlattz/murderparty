@@ -1,10 +1,8 @@
 package com.cameronlattz.murderparty;
 
-import com.cameronlattz.murderparty.models.Map;
-import com.cameronlattz.murderparty.models.Role;
-import com.cameronlattz.murderparty.models.Team;
-import com.cameronlattz.murderparty.models.Weapon;
+import com.cameronlattz.murderparty.models.*;
 import org.apache.commons.lang.StringUtils;
+import org.bukkit.Bukkit;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
@@ -133,7 +131,25 @@ public class CommandHelper {
                     return true;
                 }
                 else if ("list".equals(args[1].toLowerCase()) && sender instanceof Player) {
-                    sender.sendMessage(arg0upper + "s: " + StringUtils.join(configuration.getKeys(arg0 + "s"), ", "));
+                    List<String> loaded = new ArrayList<String>();
+                    List<String> config = new ArrayList<String>();
+                    for (String key : configuration.getKeys(arg0 + "s")) {
+                        ObjectInterface object = configuration.getObject(arg0, key);
+                        if (object != null && object.getName().equals(key)) {
+                            loaded.add(key);
+                        } else {
+                            config.add(key);
+                        }
+                    }
+                    if (loaded.size() != 0) {
+                        sender.sendMessage("Loaded " + arg0 + "s: " + StringUtils.join(loaded, ", "));
+                    }
+                    if (config.size() != 0) {
+                        sender.sendMessage("Config " + arg0 + "s: " + StringUtils.join(config, ", "));
+                    }
+                    if (loaded.size() != 0 && config.size() != 0) {
+                        sender.sendMessage("No " + arg0 + "s found.");
+                    }
                     return true;
                 }
                 else if ("add".equals(args[1].toLowerCase())) {
@@ -168,17 +184,17 @@ public class CommandHelper {
                             } else {
                                 for (java.util.Map.Entry<String, String> entry : getOptions(arg0).entrySet()) {
                                     String option = entry.getKey();
-                                    if (option.toLowerCase().equals(args[3].toLowerCase())) {
+                                    if (option.equals(args[3])) {
                                         boolean set = true;
-                                        if (extendedCommands.contains(args[3].toLowerCase())) {
-                                            if (!configuration.getKeys(args[3].toLowerCase() + "s").contains(args[4].toLowerCase())) {
+                                        if (extendedCommands.contains(args[3])) {
+                                            if (!configuration.getKeys(args[3] + "s").contains(args[4].toLowerCase())) {
                                                 set = false;
                                             }
                                         }
                                         if (set) {
-                                            configuration.set(murderParty, arg0 + "s." + args[2].toLowerCase() + "." + args[3].toLowerCase(), args[4], entry.getValue());
+                                            configuration.set(murderParty, arg0 + "s." + args[2].toLowerCase() + "." + args[3], args[4], entry.getValue());
                                             if (sender instanceof Player) {
-                                                sender.sendMessage(args[3].toLowerCase() + " set to " + args[4] + " for " + args[2].toLowerCase());
+                                                sender.sendMessage(args[3] + " set to " + args[4] + " for " + args[2].toLowerCase());
                                             }
                                         }
                                         break;
@@ -197,13 +213,20 @@ public class CommandHelper {
                         sender.sendMessage("/mp " + arg0 + " info [" + arg0 + " name]");
                     } else {
                         List<String> messages = new ArrayList<String>();
-                        if (configuration.getKeys(arg0 +"s").contains(args[2].toLowerCase())) {
-                            messages.add(arg0upper + " '" + args[2] + "' information:");
-                            for (java.util.Map.Entry<String, String> entry : getOptions(arg0).entrySet()) {
-                                String option = entry.getKey();
-                                String info = configuration.get(arg0 + "s." + args[2].toLowerCase() + "." + option.toLowerCase(), entry.getValue());
-                                if (info != null) {
-                                    messages.add(option + ": " + info);
+                        String arg2 = args[2].toLowerCase();
+                        if (configuration.getKeys(arg0 +"s").contains(arg2)) {
+                            List<String> validList = configuration.getInfo(arg0, arg2);
+                            if (validList != null) {
+                                messages.add(arg0upper + " '" + arg2 + "' (LOADED) information:");
+                                messages.addAll(validList);
+                            } else {
+                                messages.add(arg0upper + " '" + arg2 + "' (CONFIG) information:");
+                                for (java.util.Map.Entry<String, String> entry : getOptions(arg0).entrySet()) {
+                                    String option = entry.getKey();
+                                    String info = configuration.get(arg0 + "s." + arg2 + "." + option, entry.getValue());
+                                    if (info != null) {
+                                        messages.add("  " + option + ": " + info);
+                                    }
                                 }
                             }
                         }
