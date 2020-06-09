@@ -42,6 +42,8 @@ public class Map implements ObjectInterface {
 
     public String getName() { return _name; }
 
+    public String getDisplayName() { return _displayName; }
+
     public Integer getProbability() { return _probability; }
 
     public List<Location> getSpawnLocations() { return new ArrayList<Location>(_spawnLocations); }

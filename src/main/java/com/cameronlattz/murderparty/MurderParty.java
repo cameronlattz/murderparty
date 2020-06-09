@@ -1,13 +1,12 @@
 package com.cameronlattz.murderparty;
 
 import com.cameronlattz.murderparty.models.*;
-import com.sk89q.worldguard.protection.regions.ProtectedRegion;
-import org.apache.commons.lang.StringUtils;
 import org.bukkit.Location;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
+import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.plugin.java.JavaPlugin;
 
@@ -15,21 +14,23 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-public class MurderParty extends JavaPlugin {
+public class MurderParty extends JavaPlugin implements Listener {
     Configuration _configuration;
     boolean _running;
     Map _map;
+    Map _lobby;
     List<MurderPartyPlayer> _players = new ArrayList<MurderPartyPlayer>();
 
     @Override
     public void onEnable() {
+        getServer().getPluginManager().registerEvents(this, this);
         this.load();
-        getLogger().info("Murder Party enabled.");
+        _configuration.debug("Murder Party enabled.");
     }
 
     @Override
     public void onDisable() {
-        getLogger().info("Murder Party disabled.");
+        _configuration.debug("Murder Party disabled.");
     }
 
     @Override
@@ -43,7 +44,8 @@ public class MurderParty extends JavaPlugin {
     }
 
     @EventHandler
-    public void onDamage(EntityDamageByEntityEvent e) {
+    public void onPlayerDamage(EntityDamageByEntityEvent e) {
+        _configuration.debug("onDamage");
         MurderPartyPlayer damager = null;
         MurderPartyPlayer victim = null;
         for (MurderPartyPlayer player : _players) {
@@ -60,7 +62,9 @@ public class MurderParty extends JavaPlugin {
     }
 
     public void load() {
+        reloadConfig();
         _configuration = new Configuration(this);
+        _lobby = new Map(null, null, null, _configuration.getLobbyRegion(), _configuration.getWorld());
     }
 
     public void startGame() {
@@ -70,122 +74,62 @@ public class MurderParty extends JavaPlugin {
     public void startGame(Map mapIn) {
         _running = true;
         _map = this.chooseMap(mapIn);
-        // Iterate through a list of shuffled players in spawn region
+        _configuration.debug(_map.getName());
         List<Player> players = _configuration.getPlayers(_configuration.getLobbyRegion());
         Collections.shuffle(players);
-        List<Location> spawnLocations = _map.getSpawnLocations();
-        List<Location> usedSpawnLocations = new ArrayList<Location>();
         for (int i = 0; i < players.size(); i++){
             Player player = players.get(i);
-            // Iterate through the teams
-            /*Team teamT = this.chooseTeam(players, i);
-            Role roleR = this.chooseRole(teamT);
-            MurderPartyPlayer mpPlayer = this.addPlayer(player, roleR);
-            this.spawnPlayers(); // outside loop*/
-            teams:
-            for (Team team : _configuration.getTeams()) {
-                getLogger().info("iterated team: " + team.getName());
-                // If the minimum player count before spawn is reached, continue
-                int playersBefore = team.getPlayersBeforeSpawn();
-                getLogger().info("players before spawn: " + team.getPlayersBeforeSpawn());
-                int playersPer = team.getPlayersPerSpawn();
-                if (playersBefore - 1 <= i) {
-                    getLogger().info("players per spawn: " + playersPer);
-                    // If we are currently spawning this team
-                    if (i == playersBefore - 1 || i % playersPer == 0) {
-                        // The probability of spawning the team is 1 - the probability of not spawning it
-                        // if every player has a chance after the minimum is reached
-                        double notTeamProbability = (100 - team.getProbability())/100;
-                        int exponent = players.size() - i;
-                        if (exponent > playersPer) {
-                            exponent = playersPer;
-                        }
-                        double teamProbability = 1 - Math.pow(notTeamProbability, exponent);
-                        getLogger().info("team probability: " + teamProbability);
-                        if (teamProbability >= Math.random()) {
-                            int roleRandom = (int)Math.floor(Math.random() * 100);
-                            getLogger().info("role random: " + roleRandom);
-                            int roleTotal = 0;
-                            // Iterate through a list of roles in the team, so we can randomly choose one based
-                            // on probabilities
-                            for (Role teamRole : _configuration.getRolesInTeam(team)) {
-                                int currentCount = 0;
-                                for (MurderPartyPlayer mpPlayer : _players) {
-                                    if (mpPlayer.getRole() == teamRole) {
-                                        currentCount++;
-                                    }
-                                }
-                                getLogger().info("iterated role: " + teamRole.getName());
-                                getLogger().info(currentCount + " < " + teamRole.getMaxCount());
-                                if (teamRole.getMaxCount() == null || currentCount < teamRole.getMaxCount()) {
-                                    roleTotal += teamRole.getProbability();
-                                    getLogger().info("role total: " + teamRole.getProbability());
-                                    if (roleTotal >= roleRandom) {
-                                        _players.add(new MurderPartyPlayer(player, teamRole));
-                                        getLogger().info("player: " + player.getDisplayName());
-                                        getLogger().info("mp player: " + _players.get(_players.size() - 1).getPlayer().getDisplayName());
-                                        // Spawn the player and remove that spawn location from the list
-                                        List<Location> availableLocations = spawnLocations;
-                                        availableLocations.removeAll(usedSpawnLocations);
-                                        Location spawnLocation = availableLocations.get((int)Math.floor(availableLocations.size() * Math.random()));
-                                        usedSpawnLocations.add(spawnLocation);
-                                        Location aboveLocation = new Location(_configuration.getWorld(), spawnLocation.getBlockX() + 0.5, spawnLocation.getBlockY() + 2, spawnLocation.getBlockZ() + 0.5);
-                                        player.teleport(aboveLocation);
-                                        break teams;
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
+            Team team = this.chooseTeam(players, i);
+            Role role = this.chooseRole(team);
+            _players.add(this.createMpPlayer(player, role));
         }
+        this.teleportPlayers(_players, _map);
     }
 
     public void endGame() {
-        // Teleport players back to center of the lobby
-        for (Player player : _configuration.getPlayers(_map.getRegion())) {
-            ProtectedRegion lobbyRegion = _configuration.getLobbyRegion();
-            double x =  (lobbyRegion.getMaximumPoint().getX() + lobbyRegion.getMinimumPoint().getX())/2;
-            double y =  (lobbyRegion.getMaximumPoint().getY() + lobbyRegion.getMinimumPoint().getY())/2;
-            double z =  (lobbyRegion.getMaximumPoint().getZ() + lobbyRegion.getMinimumPoint().getZ())/2;
-            Location center = new Location(_configuration.getWorld(), x + Math.random() * 10 - 5, y, z + Math.random() * 10 - 5);
-            player.getInventory().clear();
-            player.teleport(center);
+        List<Player> players = _configuration.getPlayers(_map.getRegion());
+        List<MurderPartyPlayer> mpPlayers = new ArrayList<MurderPartyPlayer>();
+        for (Player player : players) {
+            for (MurderPartyPlayer mpPlayer : _players) {
+                if (mpPlayer.getPlayer().getEntityId() == player.getEntityId()) {
+                    mpPlayers.add(mpPlayer);
+                    player.getInventory().clear();
+                    break;
+                }
+            }
         }
+        this.teleportPlayers(mpPlayers, _lobby);
         _players = new ArrayList<MurderPartyPlayer>();
         _map = null;
         _running = false;
     }
 
     public Map chooseMap(Map mapIn) {
-        Map selectedMap = null;
-        if (mapIn != null) {
-            selectedMap = mapIn;
-        } else {
-            List<Map> maps = _configuration.getMaps();
-            // Randomly select a map
-            int total = 0;
-            int random = (int)Math.floor(Math.random() * 100);
-            for (Map map : maps) {
-                total += map.getProbability();
-                if (total >= random) {
-                    _map = map;
-                }
+        _configuration.debug("no map chosen");
+        List<Map> maps = _configuration.getMaps();
+        // Randomly select a map
+        int total = 0;
+        int random = (int)Math.floor(Math.random() * 100);
+        _configuration.debug("map random: " + random);
+        for (Map map : maps) {
+            total += map.getProbability();
+            _configuration.debug("map total: " + total);
+            if (total >= random) {
+                return map;
             }
         }
-        return selectedMap;
+        return mapIn != null ? mapIn : null;
     }
 
     public Team chooseTeam(List<Player> players, int index) {
         for (Team team : _configuration.getTeams()) {
-            getLogger().info("iterated team: " + team.getName());
+            _configuration.debug("iterated team: " + team.getName());
             // If the minimum player count before spawn is reached, continue
             int playersBefore = team.getPlayersBeforeSpawn();
-            getLogger().info("players before spawn: " + team.getPlayersBeforeSpawn());
+            _configuration.debug("players before spawn: " + team.getPlayersBeforeSpawn());
             int playersPer = team.getPlayersPerSpawn();
             if (playersBefore - 1 <= index) {
-                getLogger().info("players per spawn: " + playersPer);
+                _configuration.debug("players per spawn: " + playersPer);
                 // If we are currently spawning this team
                 if (index == playersBefore - 1 || index % playersPer == 0) {
                     // The probability of spawning the team is 1 - the probability of not spawning it
@@ -196,7 +140,7 @@ public class MurderParty extends JavaPlugin {
                         exponent = playersPer;
                     }
                     double teamProbability = 1 - Math.pow(notTeamProbability, exponent);
-                    getLogger().info("team probability: " + teamProbability);
+                    _configuration.debug("team probability: " + teamProbability);
                     if (teamProbability >= Math.random()) {
                         return team;
                     }
@@ -216,11 +160,11 @@ public class MurderParty extends JavaPlugin {
                     currentCount++;
                 }
             }
-            getLogger().info("iterated role: " + teamRole.getName());
-            getLogger().info(currentCount + " < " + teamRole.getMaxCount());
+            _configuration.debug("iterated role: " + teamRole.getName());
+            _configuration.debug(currentCount + " < " + teamRole.getMaxCount());
             if (teamRole.getMaxCount() == null || currentCount < teamRole.getMaxCount()) {
                 roleTotal += teamRole.getProbability();
-                getLogger().info("role total: " + teamRole.getProbability());
+                _configuration.debug("role total: " + teamRole.getProbability());
                 if (roleTotal >= roleRandom) {
                     return teamRole;
                 }
@@ -229,19 +173,21 @@ public class MurderParty extends JavaPlugin {
         return null;
     }
 
-    public MurderPartyPlayer addPlayer(Player player, Role role) {
+    public MurderPartyPlayer createMpPlayer(Player player, Role role) {
         MurderPartyPlayer mpPlayer = new MurderPartyPlayer(player, role);
-        _players.add(mpPlayer);
         return mpPlayer;
     }
 
-    public boolean spawnPlayers() {
-        List<Location> spawnLocations = _map.getSpawnLocations();
-        for (MurderPartyPlayer mpPlayer : _players) {
+    public boolean teleportPlayers(List<MurderPartyPlayer> players, Map map) {
+        List<Location> spawnLocations = map.getSpawnLocations();
+        boolean spawned = false;
+        for (MurderPartyPlayer player : players) {
             Location spawnLocation = spawnLocations.get((int)Math.floor(spawnLocations.size() * Math.random()));
             spawnLocations.remove(spawnLocation);
             Location aboveLocation = new Location(_configuration.getWorld(), spawnLocation.getBlockX() + 0.5, spawnLocation.getBlockY() + 2, spawnLocation.getBlockZ() + 0.5);
-            mpPlayer.getPlayer().teleport(aboveLocation);
+            player.getPlayer().teleport(aboveLocation);
+            spawned = true;
         }
+        return spawned;
     }
 }

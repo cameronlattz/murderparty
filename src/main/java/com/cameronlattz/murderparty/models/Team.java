@@ -1,7 +1,6 @@
 package com.cameronlattz.murderparty.models;
 
 import org.bukkit.ChatColor;
-import org.bukkit.enchantments.Enchantment;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -30,6 +29,8 @@ public class Team implements ObjectInterface {
 
     public String getName() { return _name; }
 
+    public String getDisplayName() { return _displayName; }
+
     public int getPlayersBeforeSpawn() { return _playersBeforeSpawn; }
 
     public int getPlayersPerSpawn() { return _playersPerSpawn; }
@@ -45,6 +46,7 @@ public class Team implements ObjectInterface {
         info.add("  probability: " + _probability);
         info.add("  players before spawn: " + _playersBeforeSpawn);
         info.add("  players per spawn: " + _playersPerSpawn);
+        info.add("  can kill teammates: " + _canKillTeammates);
         return info;
     }
 
@@ -55,6 +57,7 @@ public class Team implements ObjectInterface {
             put("probability", "integer");
             put("playersBeforeSpawn", "integer");
             put("playersPerSpawn", "integer");
+            put("canKillTeammates", "boolean");
         }};
     }
 

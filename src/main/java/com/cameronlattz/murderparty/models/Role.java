@@ -25,6 +25,8 @@ public class Role implements ObjectInterface {
 
     public String getName() { return _name; }
 
+    public String getDisplayName() { return _displayName; }
+
     public Integer getProbability() {
         return _probability;
     }

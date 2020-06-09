@@ -16,6 +16,7 @@ import org.bukkit.enchantments.Enchantment;
 import org.bukkit.entity.Player;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 
@@ -28,10 +29,15 @@ public class Configuration {
     List<Weapon> _weapons = new ArrayList<Weapon>();
     List<Role> _roles = new ArrayList<Role>();
     ProtectedRegion _lobbyRegion;
+    boolean _debug;
 
     public Configuration(MurderParty murderParty) {
         murderParty.saveDefaultConfig();
         _configuration = murderParty.getConfig();
+        _debug = this.getBoolean(false,"debug");
+        if (_debug) {
+            this.debug("DEBUGGING ENABLED.");
+        }
         this.loadWorld();
         this.loadWorldGuard();
         this.loadMaps();
@@ -261,15 +267,23 @@ public class Configuration {
             String materialName = this.getString("weapons", weaponName, "material");
             Material material = Material.matchMaterial(materialName);
             boolean drops = this.getBoolean(false, "weapons", weaponName, "drops");
-            String lore = this.getString("weapons", weaponName, "lore");
-            List<String> enchantmentStrings = this.getStringList("weapons", weaponName, "enchantments");
+            String loreListString = this.getString("weapons", weaponName, "lore");
+            List<String> lore = new ArrayList<String>();
+            if (loreListString != null) {
+                lore = Arrays.asList(loreListString.split("\\\\n"));
+            }
+            String enchantmentListString = this.getString("weapons", weaponName, "enchantments");
             LinkedHashMap<Enchantment, Integer> enchantments = new LinkedHashMap<Enchantment, Integer>();
-            for (String enchantmentString: enchantmentStrings) {
-                int spaceIndex = enchantmentString.indexOf(" ");
-                String enchantmentName = enchantmentString.substring(0, spaceIndex);
-                Enchantment enchantment = Enchantment.getByKey(NamespacedKey.minecraft(enchantmentName));
-                int level = Integer.parseInt(enchantmentString.substring(spaceIndex + 1));
-                enchantments.put(enchantment, level);
+            if (enchantmentListString != null) {
+                List<String> enchantmentStrings = Arrays.asList(enchantmentListString.split(", "));
+                for (String enchantmentString: enchantmentStrings) {
+                    int spaceIndex = enchantmentString.indexOf(" ");
+                    String enchantmentName = enchantmentString.substring(0, spaceIndex).toLowerCase();
+                    NamespacedKey namespacedKey = NamespacedKey.minecraft(enchantmentName);
+                    Enchantment enchantment = Enchantment.getByKey(namespacedKey);
+                    int level = Integer.parseInt(enchantmentString.substring(spaceIndex + 1));
+                    enchantments.put(enchantment, level);
+                }
             }
             _weapons.add(new Weapon(weaponName, displayName, material, drops, lore, enchantments));
         }
@@ -324,5 +338,11 @@ public class Configuration {
 
     public void loadWorld() {
         _world = Bukkit.getServer().getWorld(this.getString("world"));
+    }
+
+    public void debug(String msg) {
+        if (_debug) {
+            Bukkit.getLogger().info("[MurderParty DEBUG] " + msg);
+        }
     }
 }

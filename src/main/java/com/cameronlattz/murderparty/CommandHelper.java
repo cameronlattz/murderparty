@@ -2,7 +2,6 @@ package com.cameronlattz.murderparty;
 
 import com.cameronlattz.murderparty.models.*;
 import org.apache.commons.lang.StringUtils;
-import org.bukkit.Bukkit;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
@@ -25,6 +24,14 @@ public class CommandHelper {
                         if (mapName.startsWith(args[1].toLowerCase())) {
                             autoCompletes.add(mapName);
                         }
+                    }
+                }
+            } else if ("debug".equals(arg0)) {
+                if (args.length == 2) {
+                    if ("true".startsWith(args[1].toLowerCase())) {
+                        autoCompletes.add("true");
+                    } else if ("false".startsWith(args[1].toLowerCase())) {
+                        autoCompletes.add("false");
                     }
                 }
             } else if (extendedCommands.contains(arg0)) {
@@ -65,7 +72,7 @@ public class CommandHelper {
                     }
                 }
             } else if (args.length == 1)  {
-                List<String> commands = new ArrayList<String>(Arrays.asList("reload", "start", "end"));
+                List<String> commands = new ArrayList<String>(Arrays.asList("debug", "reload", "start", "end"));
                 commands.addAll(extendedCommands);
                 for (String command : commands) {
                     if (command.startsWith(args[0].toLowerCase())) {
@@ -81,6 +88,7 @@ public class CommandHelper {
         if (args.length == 0 && sender instanceof Player) {
             List<String> messages = new ArrayList<String>(Arrays.asList(
                 "/mp reload - Reload game",
+                "/mp debug [true/false] - Output to console",
                 "/mp start - Start game",
                 "/mp start [map name] - Start game",
                 "/mp end - End game"
@@ -99,8 +107,14 @@ public class CommandHelper {
                     sender.sendMessage("Murder Party reloaded.");
                 }
                 return true;
-            }
-            else if ("start".equals(arg0)) {
+            } else if ("debug".equals(arg0)) {
+                if (args.length == 1) {
+                    sender.sendMessage("Command usage:");
+                    sender.sendMessage("/mp debug [true/false]");
+                } else if (args[1].toLowerCase().equals("true") || args[1].toLowerCase().equals("false")) {
+                    configuration.set(murderParty, "debug", args[1].toLowerCase(), "boolean");
+                }
+            } else if ("start".equals(arg0)) {
                 if (args.length == 1) {
                     murderParty.startGame();
                     return true;
@@ -111,12 +125,10 @@ public class CommandHelper {
                         return true;
                     }
                 }
-            }
-            else if ("end".equals(arg0)) {
+            } else if ("end".equals(arg0)) {
                 murderParty.endGame();
                 return true;
-            }
-            else if (extendedCommands.contains(arg0)) {
+            } else if (extendedCommands.contains(arg0)) {
                 String arg0upper = arg0.substring(0, 1).toUpperCase() + arg0.substring(1);
                 if (args.length == 1 && sender instanceof Player) {
                     String[] messages = {
