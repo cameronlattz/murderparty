@@ -1,9 +1,7 @@
-+9++
-add disguises
 update to 0.4.0
-get spawning/behaviors working
+prevent spectators from leaving region
+get behaviors working
 set permissions
-make reloading work
 update to 0.5.0
 mute in chat
 mute on discord

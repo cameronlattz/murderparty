@@ -1,13 +1,19 @@
 package com.cameronlattz.murderparty;
 
 import com.cameronlattz.murderparty.models.*;
+import me.libraryaddict.disguise.disguisetypes.*;
+import org.bukkit.GameMode;
 import org.bukkit.Location;
+import org.bukkit.Material;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
+import org.bukkit.entity.Entity;
+import org.bukkit.entity.EntityType;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
+import org.bukkit.event.player.PlayerTeleportEvent;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.util.ArrayList;
@@ -20,6 +26,7 @@ public class MurderParty extends JavaPlugin implements Listener {
     Map _map;
     Map _lobby;
     List<MurderPartyPlayer> _players = new ArrayList<MurderPartyPlayer>();
+    List<Entity> _bodies = new ArrayList<Entity>();
 
     @Override
     public void onEnable() {
@@ -45,7 +52,7 @@ public class MurderParty extends JavaPlugin implements Listener {
 
     @EventHandler
     public void onPlayerDamage(EntityDamageByEntityEvent e) {
-        _configuration.debug("onDamage");
+        e.setCancelled(true);
         MurderPartyPlayer damager = null;
         MurderPartyPlayer victim = null;
         for (MurderPartyPlayer player : _players) {
@@ -55,9 +62,20 @@ public class MurderParty extends JavaPlugin implements Listener {
                 victim = player;
             }
         }
-        if (!damager.getTeam().canKillTeammates() && damager.getTeam() == victim.getTeam()) {
+        Weapon weapon = _configuration.getWeapon(damager.getWeaponMaterial());
+        _configuration.debug("material: " + damager.getWeaponMaterial().getKey().getKey());
+        if (weapon != null) {
+            if (!damager.getTeam().canKillTeammates() && damager.getTeam() == victim.getTeam()) {
+                this.killPlayer(damager.getPlayer());
+                this.killPlayer(victim.getPlayer());
+            }
+        }
+    }
+
+    @EventHandler
+    public void onTeleportEvent(PlayerTeleportEvent e) {
+        if (e.getCause() == PlayerTeleportEvent.TeleportCause.SPECTATE) {
             e.setCancelled(true);
-            damager.getPlayer().setHealth(0);
         }
     }
 
@@ -99,6 +117,9 @@ public class MurderParty extends JavaPlugin implements Listener {
             }
         }
         this.teleportPlayers(mpPlayers, _lobby);
+        for (Entity entity : _bodies) {
+            entity.remove();
+        }
         _players = new ArrayList<MurderPartyPlayer>();
         _map = null;
         _running = false;
@@ -174,6 +195,7 @@ public class MurderParty extends JavaPlugin implements Listener {
     }
 
     public MurderPartyPlayer createMpPlayer(Player player, Role role) {
+        _configuration.debug(player.getName());
         MurderPartyPlayer mpPlayer = new MurderPartyPlayer(player, role);
         return mpPlayer;
     }
@@ -189,5 +211,16 @@ public class MurderParty extends JavaPlugin implements Listener {
             spawned = true;
         }
         return spawned;
+    }
+
+    public void killPlayer(Player player) {
+        Disguise disguise = new PlayerDisguise(player);
+        Entity entity = player.getLocation().getWorld().spawnEntity(player.getLocation(), EntityType.ARMOR_STAND);
+        FlagWatcher flagWatcher = disguise.getWatcher();
+        flagWatcher.setSleeping(true);
+        disguise.setEntity(entity);
+        disguise.startDisguise();
+        player.setGameMode(GameMode.SPECTATOR);
+        _bodies.add(entity);
     }
 }

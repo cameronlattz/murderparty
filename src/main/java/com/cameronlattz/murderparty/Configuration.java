@@ -125,6 +125,15 @@ public class Configuration {
         return null;
     }
 
+    public Weapon getWeapon(Material material) {
+        for (Weapon weapon : _weapons) {
+            if (weapon.getItemStack().getType() == material) {
+                return weapon;
+            }
+        }
+        return null;
+    }
+
     public ProtectedRegion getLobbyRegion() { return _lobbyRegion; }
 
     public ProtectedRegion getRegion(String regionName) {

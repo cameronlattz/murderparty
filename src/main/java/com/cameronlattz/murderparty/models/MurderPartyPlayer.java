@@ -1,5 +1,6 @@
 package com.cameronlattz.murderparty.models;
 
+import org.bukkit.Material;
 import org.bukkit.entity.Player;
 
 public class MurderPartyPlayer {
@@ -22,6 +23,8 @@ public class MurderPartyPlayer {
     public Team getTeam() { return _role.getTeam(); }
 
     public Role getRole() { return _role; }
+
+    public Material getWeaponMaterial() { return _player.getPlayer().getInventory().getItemInMainHand().getType(); }
 
     public void setWeapon(Weapon weapon) { _player.getInventory().setItem(1, weapon.getItemStack()); }
 }
