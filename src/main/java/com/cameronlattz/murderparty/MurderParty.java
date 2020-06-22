@@ -1,32 +1,32 @@
 package com.cameronlattz.murderparty;
 
 import com.cameronlattz.murderparty.models.*;
+import com.cameronlattz.murderparty.models.Map;
 import me.libraryaddict.disguise.disguisetypes.*;
-import org.bukkit.GameMode;
-import org.bukkit.Location;
-import org.bukkit.Material;
+import org.apache.commons.lang.StringUtils;
+import org.bukkit.*;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
-import org.bukkit.entity.Entity;
-import org.bukkit.entity.EntityType;
-import org.bukkit.entity.Player;
+import org.bukkit.entity.*;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
-import org.bukkit.event.player.PlayerTeleportEvent;
+import org.bukkit.event.entity.ProjectileHitEvent;
+import org.bukkit.event.player.PlayerInteractEntityEvent;
 import org.bukkit.plugin.java.JavaPlugin;
+import org.bukkit.potion.PotionEffect;
+import org.bukkit.potion.PotionEffectType;
+import org.bukkit.scheduler.BukkitTask;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
+import java.util.*;
 
 public class MurderParty extends JavaPlugin implements Listener {
     Configuration _configuration;
-    boolean _running;
     Map _map;
     Map _lobby;
     List<MurderPartyPlayer> _players = new ArrayList<MurderPartyPlayer>();
-    List<Entity> _bodies = new ArrayList<Entity>();
+    LinkedHashMap<Entity, MurderPartyPlayer> _bodies = new LinkedHashMap<Entity, MurderPartyPlayer>();
+    BukkitTask _task;
 
     @Override
     public void onEnable() {
@@ -51,38 +51,80 @@ public class MurderParty extends JavaPlugin implements Listener {
     }
 
     @EventHandler
-    public void onPlayerDamage(EntityDamageByEntityEvent e) {
-        e.setCancelled(true);
-        MurderPartyPlayer damager = null;
-        MurderPartyPlayer victim = null;
-        for (MurderPartyPlayer player : _players) {
-            if (player.getPlayer().getEntityId() == e.getDamager().getEntityId()) {
-                damager = player;
-            } else if (player.getPlayer().getEntityId() == e.getEntity().getEntityId()) {
-                victim = player;
+    public void onPlayerInteractEntity(PlayerInteractEntityEvent event) {{
+        Entity entity = event.getRightClicked();
+        if (entity.getType() == EntityType.ARMOR_STAND) {
+            for (MurderPartyPlayer mpPlayer : _players) {
+                if (mpPlayer.getPlayer() == event.getPlayer()) {
+                    for (Ability ability : mpPlayer.getRole().getAbilities())
+                        switch (ability) {
+                            case TRACKING:
+                                if (_bodies.containsValue(entity)) {
+                                    ability.setCompassTarget(mpPlayer.getPlayer(), entity.getLocation());
+                                }
+                        }
+                }
             }
         }
-        Weapon weapon = _configuration.getWeapon(damager.getWeaponMaterial());
-        _configuration.debug("material: " + damager.getWeaponMaterial().getKey().getKey());
-        if (weapon != null) {
-            if (!damager.getTeam().canKillTeammates() && damager.getTeam() == victim.getTeam()) {
-                this.killPlayer(damager.getPlayer());
-                this.killPlayer(victim.getPlayer());
-            }
         }
     }
 
     @EventHandler
-    public void onTeleportEvent(PlayerTeleportEvent e) {
-        if (e.getCause() == PlayerTeleportEvent.TeleportCause.SPECTATE) {
+    public void onPlayerDamage(EntityDamageByEntityEvent e) {
+        MurderPartyPlayer damager = this.getPlayer(e.getDamager());
+        MurderPartyPlayer victim = this.getPlayer(e.getEntity());
+        if (damager != null && victim != null) {
+            Weapon weapon = _configuration.getWeapon(damager.getPlayer().getInventory().getItemInMainHand());
+            _configuration.debug("material: " + weapon.getItemStack().getType().getKey().getKey());
+            if (weapon != null && weapon.canDamage()) {
+                if (!damager.getRole().getTeam().canKillTeammates() && damager.getRole().getTeam() == victim.getRole().getTeam()) {
+                    this.killPlayer(damager, damager);
+                    this.killPlayer(victim, damager);
+                }
+                if(victim.getPlayer().getHealth() < 1) {
+                    if (victim.getRole().getAbilities().contains(Ability.SUICIDAL)) {
+                        for (MurderPartyPlayer player : _players) {
+                            if (player.isAlive() && player != victim) {
+                                this.killPlayer(player, victim);
+                            }
+                        }
+                    } else {
+                        this.killPlayer(victim, damager);
+                    }
+                }
+            }
             e.setCancelled(true);
         }
     }
 
+    @EventHandler
+    public void onArrowHit(ProjectileHitEvent event){
+        if(event.getEntity() instanceof Arrow){
+            Arrow arrow = (Arrow)event.getEntity();
+            arrow.remove();
+        }
+    }
+
+    /*@EventHandler
+    public void onTeleportEvent(PlayerTeleportEvent e) {
+        if (e.getCause() == PlayerTeleportEvent.TeleportCause.SPECTATE) {
+            boolean isMurderPartyPlayer = false;
+            for (MurderPartyPlayer mpPlayer : _players) {
+                Location playerLocation = mpPlayer.getPlayer().getLocation();
+                Location teleportLocation = e.getTo();
+                if (playerLocation.getBlock() == teleportLocation.getBlock()) {
+                    isMurderPartyPlayer = true;
+                    break;
+                }
+            }
+            e.setCancelled(isMurderPartyPlayer);
+        }
+    }*/
+
     public void load() {
         reloadConfig();
         _configuration = new Configuration(this);
-        _lobby = new Map(null, null, null, _configuration.getLobbyRegion(), _configuration.getWorld());
+        _lobby = new Map(null, null, null, _configuration.getLobbyRegion(), _configuration.getWorld(), null, null);
     }
 
     public void startGame() {
@@ -90,39 +132,63 @@ public class MurderParty extends JavaPlugin implements Listener {
     }
 
     public void startGame(Map mapIn) {
-        _running = true;
-        _map = this.chooseMap(mapIn);
-        _configuration.debug(_map.getName());
+        Map map = this.chooseMap(mapIn);
+        _configuration.debug(map.getName());
         List<Player> players = _configuration.getPlayers(_configuration.getLobbyRegion());
-        Collections.shuffle(players);
-        for (int i = 0; i < players.size(); i++){
-            Player player = players.get(i);
-            Team team = this.chooseTeam(players, i);
-            Role role = this.chooseRole(team);
-            _players.add(this.createMpPlayer(player, role));
+        if (players.size() > 0) {
+            _map = map;
+            Collections.shuffle(players);
+            for (int i = 0; i < players.size(); i++){
+                Player player = players.get(i);
+                Team team = this.chooseTeam(players, i);
+                Role role = this.chooseRole(team);
+                _players.add(this.createMpPlayer(player, role));
+                String message = "YOU ARE A " + role.getTeam().getColor() + role.getName().toUpperCase() + ChatColor.RESET + "!";
+                this.sendTitle(player, message, null, 50);
+                player.sendMessage(message);
+            }
+            this.spawnPlayers(_players, _map);
+            _task = new GameRunnable(this, _configuration, _map, _players).runTaskTimer(this, 0, 1);
         }
-        this.teleportPlayers(_players, _map);
     }
 
-    public void endGame() {
-        List<Player> players = _configuration.getPlayers(_map.getRegion());
-        List<MurderPartyPlayer> mpPlayers = new ArrayList<MurderPartyPlayer>();
-        for (Player player : players) {
+    public void endGame(Team winningTeam) {
+        _task.cancel();
+        List<Team> winningTeams = this.getNotEmptyTeams();
+        List<String> roles = new ArrayList<String>();
+        for (Team team : _configuration.getTeams()) {
             for (MurderPartyPlayer mpPlayer : _players) {
-                if (mpPlayer.getPlayer().getEntityId() == player.getEntityId()) {
-                    mpPlayers.add(mpPlayer);
-                    player.getInventory().clear();
-                    break;
+                if (mpPlayer.getRole().getTeam() == team) {
+                    roles.add(mpPlayer.getRole().getTeam().getColor() + mpPlayer.getRole().getDisplayName() + ": " + mpPlayer.getPlayer().getDisplayName() + ChatColor.RESET);
                 }
             }
         }
-        this.teleportPlayers(mpPlayers, _lobby);
-        for (Entity entity : _bodies) {
-            entity.remove();
+        this.spawnPlayers(_players, _lobby);
+        for (MurderPartyPlayer mpPlayer : _players) {
+            Player player = mpPlayer.getPlayer();
+            this.removeSpectator(player);
+            String outcome = "YOU " + (winningTeam == mpPlayer.getRole().getTeam() ? ChatColor.GREEN + "WON!" : ChatColor.RED + "LOST.");
+            if (winningTeam == null) {
+                outcome = ChatColor.AQUA + "GAME OVER";
+            }
+            this.sendTitle(player, outcome, StringUtils.join(roles, ", "), 50);
+            player.sendMessage(outcome);
+            player.sendMessage(StringUtils.join(roles, ", "));
+            player.getInventory().clear();
+            break;
         }
         _players = new ArrayList<MurderPartyPlayer>();
+        for (java.util.Map.Entry<Entity, MurderPartyPlayer> entry : _bodies.entrySet()) {
+            entry.getKey().remove();
+        }
+        List<Entity> entities = _configuration.getWorld().getEntities();
+        for(Entity entity : entities) {
+            if (entity instanceof Item && _map.containsLocation(entity.getLocation())) {
+                entity.remove();
+            }
+        }
+        _bodies = new LinkedHashMap<Entity, MurderPartyPlayer>();
         _map = null;
-        _running = false;
     }
 
     public Map chooseMap(Map mapIn) {
@@ -200,27 +266,77 @@ public class MurderParty extends JavaPlugin implements Listener {
         return mpPlayer;
     }
 
-    public boolean teleportPlayers(List<MurderPartyPlayer> players, Map map) {
+    public void spawnPlayers(List<MurderPartyPlayer> mpPlayers, Map map) {
         List<Location> spawnLocations = map.getSpawnLocations();
-        boolean spawned = false;
-        for (MurderPartyPlayer player : players) {
+        for (MurderPartyPlayer mpPlayer : mpPlayers) {
             Location spawnLocation = spawnLocations.get((int)Math.floor(spawnLocations.size() * Math.random()));
             spawnLocations.remove(spawnLocation);
             Location aboveLocation = new Location(_configuration.getWorld(), spawnLocation.getBlockX() + 0.5, spawnLocation.getBlockY() + 2, spawnLocation.getBlockZ() + 0.5);
-            player.getPlayer().teleport(aboveLocation);
-            spawned = true;
+            mpPlayer.getPlayer().teleport(aboveLocation);
         }
-        return spawned;
     }
 
-    public void killPlayer(Player player) {
+    public void killPlayer(MurderPartyPlayer victim, MurderPartyPlayer damager) {
+        Player player = victim.getPlayer();
+        player.addPotionEffect(new PotionEffect(PotionEffectType.BLINDNESS, 3, 255));
+        this.sendTitle(player, ChatColor.RED + "You have been killed!", null, 40);
         Disguise disguise = new PlayerDisguise(player);
-        Entity entity = player.getLocation().getWorld().spawnEntity(player.getLocation(), EntityType.ARMOR_STAND);
         FlagWatcher flagWatcher = disguise.getWatcher();
         flagWatcher.setSleeping(true);
+        Entity entity = player.getLocation().getWorld().spawnEntity(player.getLocation(), EntityType.ARMOR_STAND);
+        entity.setGravity(false);
         disguise.setEntity(entity);
         disguise.startDisguise();
-        player.setGameMode(GameMode.SPECTATOR);
-        _bodies.add(entity);
+        this.setSpectator(player);
+        player.getInventory().clear();
+        _bodies.put(entity, damager);
+        if (getNotEmptyTeams().size() == 1) {
+            this.endGame(getNotEmptyTeams().get(0));
+        }
+    }
+
+    public List<Team> getNotEmptyTeams() {
+        List<Team> notEmptyTeams = new ArrayList<Team>();
+        for (MurderPartyPlayer mpPlayer : _players) {
+            if (mpPlayer.isAlive() && !notEmptyTeams.contains(mpPlayer.getRole().getTeam())) {
+                notEmptyTeams.add(mpPlayer.getRole().getTeam());
+            }
+        }
+        return notEmptyTeams;
+    }
+
+    public MurderPartyPlayer getPlayer(Entity e) {
+        for (MurderPartyPlayer player : _players) {
+            if (player.getPlayer().getEntityId() == e.getEntityId()) {
+                return player;
+            }
+        }
+        return null;
+    }
+
+    public void setSpectator(Player p) {
+        if (p.getGameMode() == GameMode.SURVIVAL) {
+            p.setGameMode(GameMode.ADVENTURE);
+            p.setAllowFlight(true);
+            p.setFlying(true);
+            for(Player player: Bukkit.getOnlinePlayers()) {
+                player.hidePlayer(this, p);
+            }
+        }
+    }
+
+    public void removeSpectator(Player p) {
+        if (p.getGameMode() == GameMode.ADVENTURE) {
+            p.setGameMode(GameMode.SURVIVAL);
+            p.setAllowFlight(false);
+            p.setFlying(false);
+            for(Player player: Bukkit.getOnlinePlayers()) {
+                player.showPlayer(this, p);
+            }
+        }
+    }
+
+    public void sendTitle(Player player, String title, String subtitle, int duration) {
+        player.sendTitle(title, subtitle, 20, duration, 20);
     }
 }

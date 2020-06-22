@@ -14,6 +14,12 @@ import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.enchantments.Enchantment;
 import org.bukkit.entity.Player;
+import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.ItemMeta;
+import org.bukkit.inventory.meta.PotionMeta;
+import org.bukkit.potion.PotionEffect;
+import org.bukkit.potion.PotionEffectType;
+import scala.Int;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -26,6 +32,7 @@ public class Configuration {
     World _world;
     List<Map> _maps = new ArrayList<Map>();
     List<Team> _teams = new ArrayList<Team>();
+    List<Ammo> _ammos = new ArrayList<Ammo>();
     List<Weapon> _weapons = new ArrayList<Weapon>();
     List<Role> _roles = new ArrayList<Role>();
     ProtectedRegion _lobbyRegion;
@@ -42,7 +49,9 @@ public class Configuration {
         this.loadWorldGuard();
         this.loadMaps();
         this.loadTeams();
+        this.loadAmmos();
         this.loadWeapons();
+        _weapons.add(new Weapon("nothing", null, Material.AIR, false, 0, null, null, null, null));
         this.loadRoles();
         String lobbyRegionName = this.getString("lobby");
         _lobbyRegion = this.getRegion(lobbyRegionName);
@@ -116,6 +125,17 @@ public class Configuration {
         return _teams;
     }
 
+    public Ammo getAmmo(String ammoName) {
+        for (Ammo ammoItem : _ammos) {
+            if (ammoItem.getName().equals(ammoName)) {
+                return ammoItem;
+            }
+        }
+        return null;
+    }
+
+    public List<Ammo> getAmmos() { return _ammos; }
+
     public Weapon getWeapon(String name) {
         for (Weapon weapon : _weapons) {
             if (weapon.getName().equals(name)) {
@@ -125,13 +145,17 @@ public class Configuration {
         return null;
     }
 
-    public Weapon getWeapon(Material material) {
+    public Weapon getWeapon(ItemStack itemStack) {
         for (Weapon weapon : _weapons) {
-            if (weapon.getItemStack().getType() == material) {
+            if (weapon.getItemStack().isSimilar(itemStack)) {
                 return weapon;
             }
         }
         return null;
+    }
+
+    public List<Weapon> getWeapons() {
+        return _weapons;
     }
 
     public ProtectedRegion getLobbyRegion() { return _lobbyRegion; }
@@ -156,8 +180,8 @@ public class Configuration {
         return playersInRegion;
     }
 
-    public List<String> getKeys(String path) {
-        ConfigurationSection configurationSection =  _configuration.getConfigurationSection(path);
+    public List<String> getKeys(String... path) {
+        ConfigurationSection configurationSection =  _configuration.getConfigurationSection(StringUtils.join(path, "."));
         List<String> keys = new ArrayList<String>();
         if (configurationSection != null) {
             for (String key : configurationSection.getKeys(false)) {
@@ -253,8 +277,7 @@ public class Configuration {
 
     public boolean addSection(MurderParty murderParty, String path, String value) {
         ConfigurationSection configurationSection = _configuration.getConfigurationSection(path);
-        if (configurationSection != null && configurationSection.isConfigurationSection(value)
-            || path == null && _configuration.isConfigurationSection(value)) {
+        if ((configurationSection != null && configurationSection.isConfigurationSection(value)) || (path == null && _configuration.isConfigurationSection(value))) {
             return false;
         }
         this.setSection(murderParty, path, value);
@@ -269,73 +292,152 @@ public class Configuration {
         return true;
     }
 
-    private void loadWeapons() {
-        List<String> weaponNames = this.getKeys("weapons");
-        for (String weaponName : weaponNames) {
-            String displayName = this.getString("weapons", weaponName, "name");
-            String materialName = this.getString("weapons", weaponName, "material");
-            Material material = Material.matchMaterial(materialName);
-            boolean drops = this.getBoolean(false, "weapons", weaponName, "drops");
-            String loreListString = this.getString("weapons", weaponName, "lore");
-            List<String> lore = new ArrayList<String>();
-            if (loreListString != null) {
-                lore = Arrays.asList(loreListString.split("\\\\n"));
-            }
-            String enchantmentListString = this.getString("weapons", weaponName, "enchantments");
-            LinkedHashMap<Enchantment, Integer> enchantments = new LinkedHashMap<Enchantment, Integer>();
-            if (enchantmentListString != null) {
-                List<String> enchantmentStrings = Arrays.asList(enchantmentListString.split(", "));
-                for (String enchantmentString: enchantmentStrings) {
-                    int spaceIndex = enchantmentString.indexOf(" ");
-                    String enchantmentName = enchantmentString.substring(0, spaceIndex).toLowerCase();
-                    NamespacedKey namespacedKey = NamespacedKey.minecraft(enchantmentName);
-                    Enchantment enchantment = Enchantment.getByKey(namespacedKey);
-                    int level = Integer.parseInt(enchantmentString.substring(spaceIndex + 1));
-                    enchantments.put(enchantment, level);
+    private void loadAmmos() {
+        String key = "ammos";
+        List<String> ammoNames = this.getKeys(key);
+        for (String ammoName : ammoNames) {
+            String materialName = this.getString(key, ammoName, "material");
+            if (materialName != null) {
+                Material material = Material.matchMaterial(materialName);
+                Integer count = this.getInt(key, ammoName, "count");
+                ItemStack itemStack = new ItemStack(material, count != null ? count : 1);
+                ItemMeta itemMeta = itemStack.getItemMeta();
+                String type = this.getString(key, ammoName, "type");
+                if (type != null) {
+                    if (material == Material.SPLASH_POTION) {
+                        PotionMeta potionMeta = (PotionMeta)itemStack.getItemMeta();
+                        String[] typeSplit = type.split(" ");
+                        if (typeSplit.length == 3) {
+                            PotionEffect potionEffect = new PotionEffect(PotionEffectType.getByName(typeSplit[0].toLowerCase()), Integer.parseInt(typeSplit[1]), Integer.parseInt(typeSplit[2]));
+                            potionMeta.addCustomEffect(potionEffect, true);
+                            itemStack.setItemMeta(potionMeta);
+                        }
+                    }
                 }
+                Integer max = this.getInt(key, ammoName, "max");
+                Integer cooldown = this.getInt(key, ammoName, "cooldown");
+                Integer dropProbability = this.getInt(key, ammoName, "dropProbability");
+                _ammos.add(new Ammo(ammoName, itemStack, max, cooldown, dropProbability));
             }
-            _weapons.add(new Weapon(weaponName, displayName, material, drops, lore, enchantments));
+        }
+    }
+
+    private void loadWeapons() {
+        String key = "weapons";
+        List<String> weaponNames = this.getKeys(key);
+        for (String weaponName : weaponNames) {
+            String displayName = this.getString(key, weaponName, "name");
+            if (displayName != null && displayName.length() != 0) {
+                String materialName = this.getString(key, weaponName, "material");
+                Material material = Material.matchMaterial(materialName);
+                boolean canDamage = this.getBoolean(true, key, weaponName, "canDamage");
+                Integer dropProbability = this.getInt(key, weaponName, "dropProbability");
+                String loreListString = this.getString(key, weaponName, "lore");
+                List<String> lore = new ArrayList<String>();
+                if (loreListString != null) {
+                    lore = Arrays.asList(loreListString.split("\\\\n"));
+                }
+                String enchantmentListString = this.getString(key, weaponName, "enchantments");
+                LinkedHashMap<Enchantment, Integer> enchantments = new LinkedHashMap<Enchantment, Integer>();
+                if (enchantmentListString != null) {
+                    List<String> enchantmentStrings = Arrays.asList(enchantmentListString.split(", "));
+                    for (String enchantmentString: enchantmentStrings) {
+                        int spaceIndex = enchantmentString.indexOf(" ");
+                        String enchantmentName = enchantmentString.substring(0, spaceIndex).toLowerCase();
+                        NamespacedKey enchantmentKey = NamespacedKey.minecraft(enchantmentName);
+                        Enchantment enchantment = Enchantment.getByKey(enchantmentKey);
+                        int level = Integer.parseInt(enchantmentString.substring(spaceIndex + 1));
+                        enchantments.put(enchantment, level);
+                    }
+                }
+                String ammoNames = this.getString(key, weaponName, "ammo");
+                List<Ammo> ammos = new ArrayList<Ammo>();
+                if (ammoNames != null) {
+                    for (String ammoName : ammoNames.split(" ,")) {
+                        Ammo ammo = this.getAmmo(ammoName);
+                        if (ammo != null) {
+                            ammos.add(ammo);
+                        }
+                    }
+                }
+                List<Ability> abilities = new ArrayList<Ability>();
+                String abilityNamesString = this.getString(key, weaponName, "abilities");
+                if (abilityNamesString != null) {
+                    for (String abilityName : abilityNamesString.split(", ")) {
+                        Ability ability = Ability.getByName(abilityName);
+                        if (ability != null) {
+                            abilities.add(ability);
+                        }
+                    }
+                }
+                _weapons.add(new Weapon(weaponName, displayName, material, canDamage, dropProbability, lore, enchantments, ammos, abilities));
+            }
         }
     }
 
     private void loadTeams() {
-        List<String> teamNames = this.getKeys("teams");
+        String key = "teams";
+        List<String> teamNames = this.getKeys(key);
         for (String teamName : teamNames) {
-            String displayName = this.getString("teams", teamName, "name");
-            String color = this.getString("teams", teamName, "color");
-            Integer probability = this.getInt("teams", teamName, "probability");
-            Integer playersBefore = this.getInt("teams", teamName, "playersBeforeSpawn");
-            Integer playersPer = this.getInt("teams", teamName, "playersPerSpawn");
-            boolean canKillTeammates = this.getBoolean(true, "teams", teamName, "canKillTeammates");
+            String displayName = this.getString(key, teamName, "name");
+            String color = this.getString(key, teamName, "color");
+            Integer probability = this.getInt(key, teamName, "probability");
+            Integer playersBefore = this.getInt(key, teamName, "playersBeforeSpawn");
+            Integer playersPer = this.getInt(key, teamName, "playersPerSpawn");
+            boolean canKillTeammates = this.getBoolean(true, key, teamName, "canKillTeammates");
+            boolean canSeeTeammates = this.getBoolean(false, key, teamName, "canSeeTeammates");
             if (displayName != null && color != null &&  probability != null && playersBefore != null && playersPer != null) {
-                _teams.add(new Team(teamName, displayName, color, probability, playersBefore, playersPer, canKillTeammates));
+                _teams.add(new Team(teamName, displayName, color, probability, playersBefore, playersPer, canKillTeammates, canSeeTeammates));
             }
         }
     }
 
     public void loadRoles() {
-        List<String> roleNames = this.getKeys("roles");
+        String key = "roles";
+        List<String> roleNames = this.getKeys(key);
         for (String roleName : roleNames) {
-            String displayName = this.getString("roles", roleName, "name");
-            Integer probability = this.getInt("roles", roleName, "probability");
-            Integer maxCount = this.getInt("roles", roleName, "maxCount");
-            Weapon weapon = this.getWeapon(this.getString("roles", roleName, "weapon"));
-            Team team = this.getTeam(this.getString("roles", roleName, "team"));
+            String displayName = this.getString(key, roleName, "name");
+            Integer probability = this.getInt(key, roleName, "probability");
+            Integer maxCount = this.getInt(key, roleName, "max");
+            String weaponListString = this.getString(key, roleName, "weapons");
+            List<Weapon> weapons = new ArrayList<Weapon>();
+            if (weaponListString != null) {
+                for (String weaponName : weaponListString.split(", ")) {
+                    Weapon weapon = this.getWeapon(weaponName);
+                    if (weapon != null) {
+                        weapons.add(weapon);
+                    }
+                }
+            }
+            Team team = this.getTeam(this.getString(key, roleName, "team"));
+            List<Ability> abilities = new ArrayList<Ability>();
+            String abilityNamesString = this.getString(key, roleName, "abilities");
+            if (abilityNamesString != null) {
+                for (String abilityName : abilityNamesString.split(", ")) {
+                    Ability ability = Ability.getByName(abilityName);
+                    if (ability != null) {
+                        abilities.add(ability);
+                    }
+                }
+            }
             if (displayName != null && team != null && probability != null) {
-                _roles.add(new Role(roleName, displayName, team, probability, maxCount, weapon));
+                _roles.add(new Role(roleName, displayName, team, probability, maxCount, weapons, abilities));
             }
         }
     }
 
     public void loadMaps() {
-        for (String mapName : this.getKeys("maps")) {
-            String displayName = this.getString("maps", mapName, "name");
-            Integer probability = this.getInt("maps", mapName, "probability");
-            String regionName = this.getString("maps", mapName, "region");
+        String key = "maps";
+        for (String mapName : this.getKeys(key)) {
+            String displayName = this.getString(key, mapName, "name");
+            Integer probability = this.getInt(key, mapName, "probability");
+            Integer ticksPerAmmoDrop = this.getInt(key, mapName, "ticksPerAmmoDrop");
+            Integer ticksPerWeaponDrop = this.getInt(key, mapName, "ticksPerWeaponDrop");
+            String regionName = this.getString(key, mapName, "region");
             if (regionName != null) {
                 ProtectedRegion region = this.getRegion(regionName);
                 if (displayName != null && probability != null && region != null) {
-                    _maps.add(new Map(mapName, displayName, probability, region, _world));
+                    _maps.add(new Map(mapName, displayName, probability, region, _world, ticksPerAmmoDrop, ticksPerWeaponDrop));
                 }
             }
         }

@@ -5,6 +5,7 @@ import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.World;
 import org.bukkit.block.Block;
+import scala.Int;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -16,8 +17,11 @@ public class Map implements ObjectInterface {
     private Integer _probability;
     private ProtectedRegion _region;
     private List<Location> _spawnLocations = new ArrayList<Location>();
+    private List<Location> _dropLocations = new ArrayList<Location>();
+    private int _ticksPerAmmoDrop = 0;
+    private int _ticksPerWeaponDrop = 0;
 
-    public Map(String name, String displayName, Integer probability, ProtectedRegion region, World world) {
+    public Map(String name, String displayName, Integer probability, ProtectedRegion region, World world, Integer ticksPerAmmoDrop, Integer ticksPerWeaponDrop) {
         _name = name;
         _displayName = displayName;
         _probability = probability;
@@ -35,9 +39,18 @@ public class Map implements ObjectInterface {
                     if (block.getType() == Material.JIGSAW) {
                         _spawnLocations.add(new Location(world, x, y, z));
                     }
+                    if (!block.isEmpty() && !block.isLiquid() && !block.isPassable()) {
+                        Block above1 = block.getRelative(0, 1, 0);
+                        Block above2 = block.getRelative(0, 2, 0);
+                        if ((above1.isEmpty() || above1.isPassable()) && (above2.isEmpty() || above2.isPassable())) {
+                            _dropLocations.add(new Location(world, x, y, z));
+                        }
+                    }
                 }
             }
         }
+        _ticksPerAmmoDrop = ticksPerAmmoDrop != null ? ticksPerAmmoDrop : _ticksPerAmmoDrop;
+        _ticksPerWeaponDrop = ticksPerWeaponDrop != null ? ticksPerWeaponDrop : _ticksPerWeaponDrop;
     }
 
     public String getName() { return _name; }
@@ -48,13 +61,25 @@ public class Map implements ObjectInterface {
 
     public List<Location> getSpawnLocations() { return new ArrayList<Location>(_spawnLocations); }
 
+    public List<Location> getDropLocations() { return new ArrayList<Location>(_dropLocations); }
+
     public ProtectedRegion getRegion() { return _region; }
+
+    public int getTicksPerAmmoDrop() { return _ticksPerAmmoDrop; }
+
+    public int getTicksPerWeaponDrop() { return _ticksPerWeaponDrop; }
+
+    public boolean containsLocation(Location location) {
+        return _region.contains(location.getBlockX(), location.getBlockY(), location.getBlockZ());
+    }
 
     public List<String> getInfo() {
         List<String> info = new ArrayList<String>();
         info.add("  name: " + _displayName);
         info.add("  probability: " + _probability);
         info.add("  region: " + _region.getId());
+        info.add("  ticks per ammo drop: " + _ticksPerAmmoDrop);
+        info.add("  ticks per weapon drop: " + _ticksPerWeaponDrop);
         info.add("  spawn locations:");
         for (Location s : _spawnLocations) {
             info.add("   -" + s.getBlockX() + ", " + s.getBlockY() + ", " + s.getBlockZ());
@@ -67,6 +92,8 @@ public class Map implements ObjectInterface {
             put("name", "string");
             put("probability", "integer");
             put("region", "string");
+            put("ticksPerAmmoDrop", "integer");
+            put("ticksPerWeaponDrop", "integer");
         }};
     }
 }

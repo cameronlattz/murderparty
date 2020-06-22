@@ -1,7 +1,9 @@
 package com.cameronlattz.murderparty.models;
 
-import org.bukkit.Material;
+import org.bukkit.GameMode;
 import org.bukkit.entity.Player;
+
+import java.util.List;
 
 public class MurderPartyPlayer {
     private Player _player;
@@ -10,21 +12,22 @@ public class MurderPartyPlayer {
     public MurderPartyPlayer(Player player, Role role) {
         _player = player;
         _role = role;
-        Weapon weapon = role.getWeapon();
+        List<Weapon> weapons = role.getWeapons();
         player.getInventory().clear();
-        if (weapon != null) {
-            this.setWeapon(role.getWeapon());
+        for (int i = 0; i < weapons.size(); i++) {
+            this.setWeapon(weapons.get(i), i+1);
         }
-        player.sendTitle("You are a " + role.getColor() + role.getName(), "", 20, 40, 20);
     }
 
     public Player getPlayer() { return _player; }
 
-    public Team getTeam() { return _role.getTeam(); }
-
     public Role getRole() { return _role; }
 
-    public Material getWeaponMaterial() { return _player.getPlayer().getInventory().getItemInMainHand().getType(); }
+    public void setWeapon(Weapon weapon, int slot) {
+        _player.getInventory().setItem(slot, weapon.getItemStack());
+    }
 
-    public void setWeapon(Weapon weapon) { _player.getInventory().setItem(1, weapon.getItemStack()); }
+    public boolean isAlive() {
+        return _player.getGameMode() == GameMode.SURVIVAL;
+    }
 }

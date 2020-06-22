@@ -11,7 +11,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 
 public class CommandHelper {
-    static List<String> extendedCommands = Arrays.asList("map", "team", "role", "weapon");
+    static List<String> extendedCommands = Arrays.asList("ammo", "map", "team", "role", "weapon");
 
     public static List<String> onTabComplete(Configuration configuration, String[] args) {
         List<String> autoCompletes = new ArrayList<String>();
@@ -126,7 +126,7 @@ public class CommandHelper {
                     }
                 }
             } else if ("end".equals(arg0)) {
-                murderParty.endGame();
+                murderParty.endGame(null);
                 return true;
             } else if (extendedCommands.contains(arg0)) {
                 String arg0upper = arg0.substring(0, 1).toUpperCase() + arg0.substring(1);

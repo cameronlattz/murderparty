@@ -1,5 +1,6 @@
 package com.cameronlattz.murderparty.models;
 
+import org.apache.commons.lang.StringUtils;
 import org.bukkit.ChatColor;
 
 import java.util.ArrayList;
@@ -12,15 +13,17 @@ public class Role implements ObjectInterface {
     private Team _team;
     private Integer _probability;
     private Integer _maxCount;
-    private Weapon _weapon;
+    private List<Weapon> _weapons = new ArrayList<Weapon>();
+    private List<Ability> _abilities;
 
-    public Role(String name, String displayName, Team team, Integer probability, Integer maxCount, Weapon weapon) {
+    public Role(String name, String displayName, Team team, Integer probability, Integer maxCount, List<Weapon> weapons, List<Ability> abilities) {
         _name = name;
         _displayName = displayName;
         _team = team;
         _probability = probability;
         _maxCount = maxCount;
-        _weapon = weapon;
+        _weapons = weapons;
+        _abilities = abilities;
     }
 
     public String getName() { return _name; }
@@ -35,9 +38,9 @@ public class Role implements ObjectInterface {
         return _team;
     }
 
-    public Weapon getWeapon() { return _weapon; }
+    public List<Weapon> getWeapons() { return _weapons; }
 
-    public ChatColor getColor() { return _team.getColor(); }
+    public List<Ability> getAbilities() { return _abilities; }
 
     public Integer getMaxCount() { return _maxCount; }
 
@@ -47,9 +50,10 @@ public class Role implements ObjectInterface {
         info.add("  team: " + _team.getName());
         info.add("  probability: " + _probability);
         info.add("  max count: " + _maxCount);
-        if (_weapon != null) {
-            info.add("  weapon: " + _weapon.getName());
+        for (Weapon weapon : _weapons) {
+            info.add("  weapon: " + weapon.getName());
         }
+        info.add("  abilities: " + StringUtils.join(_abilities.toArray(), ", "));
         return info;
     }
 
@@ -59,7 +63,8 @@ public class Role implements ObjectInterface {
             put("team", "string");
             put("probability", "integer");
             put("maxCount", "integer");
-            put("weapon", "string");
+            put("weapons", "string");
+            put("abilities", "string");
         }};
     }
 

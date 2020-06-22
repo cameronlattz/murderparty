@@ -7,3 +7,10 @@ commands:
   murderparty:
     description: Murder Party
     aliases: [mp, mP, Mp, MP]
+permissions:
+  mp.start:
+    description: Allows starting a MurderParty game
+    default: op
+  mp.end:
+    description: Allows ending a MurderParty game
+    default: op

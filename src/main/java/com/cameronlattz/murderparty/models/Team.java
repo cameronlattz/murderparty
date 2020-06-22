@@ -14,8 +14,9 @@ public class Team implements ObjectInterface {
     private Integer _playersPerSpawn;
     private ChatColor _color;
     private boolean _canKillTeammates;
+    private boolean _canSeeTeammates;
 
-    public Team(String name, String displayName, String color, Integer probability, Integer playersBeforeSpawn, Integer playersPerSpawn, boolean canKillTeammates) {
+    public Team(String name, String displayName, String color, Integer probability, Integer playersBeforeSpawn, Integer playersPerSpawn, boolean canKillTeammates, boolean canSeeTeammates) {
         _name = name;
         _displayName = displayName;
         _probability = probability;
@@ -23,9 +24,12 @@ public class Team implements ObjectInterface {
         _playersPerSpawn = playersPerSpawn;
         _color = ChatColor.valueOf(color.toUpperCase());
         _canKillTeammates = canKillTeammates;
+        _canSeeTeammates = canSeeTeammates;
     }
 
     public boolean canKillTeammates() { return _canKillTeammates; }
+
+    public boolean canSeeTeammates() { return _canKillTeammates; }
 
     public String getName() { return _name; }
 
@@ -59,14 +63,5 @@ public class Team implements ObjectInterface {
             put("playersPerSpawn", "integer");
             put("canKillTeammates", "boolean");
         }};
-    }
-
-    public static Team getByName(List<Team> teams, String name) {
-        for (Team team : teams) {
-            if (team.getName() == name) {
-                return team;
-            }
-        }
-        return null;
     }
 }
