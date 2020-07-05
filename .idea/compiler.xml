@@ -9,5 +9,8 @@
         <module name="MurderParty" />
       </profile>
     </annotationProcessing>
+    <bytecodeTargetLevel>
+      <module name="MurderParty" target="1.5" />
+    </bytecodeTargetLevel>
   </component>
 </project>

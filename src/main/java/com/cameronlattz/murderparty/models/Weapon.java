@@ -2,6 +2,7 @@ package com.cameronlattz.murderparty.models;
 
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang.WordUtils;
+import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.enchantments.Enchantment;
 import org.bukkit.inventory.ItemStack;
@@ -35,20 +36,23 @@ public class Weapon implements ObjectInterface {
         _ammos = ammos != null ? ammos : _ammos;
         _abilities = abilities != null ? abilities : _abilities;
         ItemStack itemStack = new ItemStack(_material);
-        if (_enchantments.size() != 0) {
-            itemStack.addUnsafeEnchantments(_enchantments);
+        if (_material != Material.AIR) {
+            if (_enchantments.size() != 0) {
+                itemStack.addUnsafeEnchantments(_enchantments);
+            }
+            ItemMeta itemMeta = itemStack.getItemMeta();
+            if (_lore != null && _lore.size() != 0) {
+                itemMeta.setLore(_lore);
+            }
+            if (_displayName != null && _displayName.length() != 0) {
+                itemMeta.setDisplayName(_displayName);
+            }
+            if (itemMeta instanceof Damageable) {
+                itemMeta.setUnbreakable(true);
+            }
+            itemMeta.addEnchant(Enchantment.BINDING_CURSE, 1, true);
+            itemStack.setItemMeta(itemMeta);
         }
-        ItemMeta itemMeta = itemStack.getItemMeta();
-        if (_lore != null && _lore.size() != 0) {
-            itemMeta.setLore(_lore);
-        }
-        if (_displayName != null && _displayName.length() != 0) {
-            itemMeta.setDisplayName(_displayName);
-        }
-        if (itemMeta instanceof Damageable) {
-            itemMeta.setUnbreakable(true);
-        }
-        itemStack.setItemMeta(itemMeta);
         _itemStack = itemStack;
     }
 

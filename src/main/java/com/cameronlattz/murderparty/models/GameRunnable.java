@@ -89,7 +89,7 @@ public class GameRunnable extends BukkitRunnable {
             ItemStack mainHand = mpPlayer.getPlayer().getInventory().getItemInMainHand();
             if (mainHand != null) {
                 Weapon weapon = _configuration.getWeapon(mainHand);
-                if (weapon.getAbilities().contains(ability)) {
+                if (weapon != null && weapon.getAbilities().contains(ability)) {
                     switch (ability) {
                         case TRACKING:
                             ability.setCompassTarget(mpPlayer.getPlayer(), ability.getCompassTarget());

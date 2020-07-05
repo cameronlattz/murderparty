@@ -1,7 +1,6 @@
 package com.cameronlattz.murderparty.models;
 
 import org.apache.commons.lang.StringUtils;
-import org.bukkit.ChatColor;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
