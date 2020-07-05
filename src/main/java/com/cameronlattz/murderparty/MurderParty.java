@@ -26,7 +26,7 @@ public class MurderParty extends JavaPlugin implements Listener {
     Map _map;
     Map _lobby;
     List<MurderPartyPlayer> _players = new ArrayList<MurderPartyPlayer>();
-    LinkedHashMap<Entity, MurderPartyPlayer> _bodies = new LinkedHashMap<Entity, MurderPartyPlayer>();
+    LinkedHashMap<Disguise, MurderPartyPlayer> _bodies = new LinkedHashMap<Disguise, MurderPartyPlayer>();
     BukkitTask _task;
 
     @Override
@@ -52,7 +52,7 @@ public class MurderParty extends JavaPlugin implements Listener {
     }
 
     @EventHandler
-    public void onPlayerInteractEntity(PlayerInteractEntityEvent event) {{
+    public void onPlayerInteractEntity(PlayerInteractEntityEvent event) {
         Entity entity = event.getRightClicked();
         if (entity.getType() == EntityType.ARMOR_STAND) {
             for (MurderPartyPlayer mpPlayer : _players) {
@@ -60,13 +60,14 @@ public class MurderParty extends JavaPlugin implements Listener {
                     for (Ability ability : mpPlayer.getRole().getAbilities())
                         switch (ability) {
                             case TRACKING:
-                                if (_bodies.containsValue(entity)) {
-                                    ability.setCompassTarget(mpPlayer.getPlayer(), entity.getLocation());
+                                for (java.util.Map.Entry<Disguise, MurderPartyPlayer> body : _bodies.entrySet()) {
+                                    if (body.getKey().getEntity() == entity) {
+                                        ability.setCompassTarget(mpPlayer.getPlayer(), entity.getLocation());
+                                    }
                                 }
                         }
                 }
             }
-        }
         }
     }
 
@@ -77,14 +78,12 @@ public class MurderParty extends JavaPlugin implements Listener {
         if (damager != null && victim != null) {
             Weapon weapon = _configuration.getWeapon(damager.getPlayer().getInventory().getItemInMainHand());
             if (weapon != null && weapon.canDamage()) {
-                _configuration.debug("can damage, checking teams");
                 if (!damager.getRole().getTeam().canKillTeammates() && damager.getRole().getTeam() == victim.getRole().getTeam()) {
                     this.killPlayer(damager, damager);
                     this.killPlayer(victim, damager);
                     e.setCancelled(true);
                 }
                 if (victim.getPlayer().getHealth() - e.getFinalDamage() < 1) {
-                    _configuration.debug("victim is dead");
                     victim.getPlayer().setHealth(20);
                     if (victim.getRole().getAbilities().contains(Ability.SUICIDAL)) {
                         for (MurderPartyPlayer player : _players) {
@@ -144,41 +143,7 @@ public class MurderParty extends JavaPlugin implements Listener {
 
     public void endGame(Team winningTeam) {
         _task.cancel();
-        LinkedHashMap<Role, List<String>> rolesAndPlayerNames = new LinkedHashMap<Role, List<String>>();
-        List<String> roleStrings = new ArrayList<String>();
-        List<String> orderedTeamNames = new ArrayList<String>();
-        for (Team team : _configuration.getTeams()) {
-            if (!orderedTeamNames.contains(team.getDisplayName())) {
-                orderedTeamNames.add(team.getDisplayName());
-            }
-        }
-        Collections.sort(orderedTeamNames);
-        List<String> orderedRoleNames = new ArrayList<String>();
-        for (MurderPartyPlayer mpPlayer : _players) {
-            List<String> playerNames = new ArrayList<String>();
-            Role role = mpPlayer.getRole();
-            if (rolesAndPlayerNames.containsKey(role)) {
-                playerNames = rolesAndPlayerNames.get(role);
-            } else {
-                orderedRoleNames.add(role.getDisplayName());
-            }
-            playerNames.add(mpPlayer.getPlayer().getDisplayName());
-            rolesAndPlayerNames.put(role, playerNames);
-        }
-        Collections.sort(orderedRoleNames);
-        for (String teamName : orderedTeamNames) {
-            for (String roleName : orderedRoleNames) {
-                for (java.util.Map.Entry<Role, List<String>> entry : rolesAndPlayerNames.entrySet()) {
-                    Role role = entry.getKey();
-                    if (role.getTeam().getDisplayName() == teamName && role.getDisplayName() == roleName) {
-                        List<String> playerNames = rolesAndPlayerNames.get(role);
-                        Collections.sort(playerNames);
-                        String playerNamesString = StringUtils.join(playerNames, ", ");
-                        roleStrings.add(role.getTeam().getColor() + roleName.toUpperCase() + ": " + playerNamesString + ChatColor.RESET);
-                    }
-                }
-            }
-        }
+        String roleInformation = StringUtils.join(this.getRoleInformation(_players), ", ");
         this.spawnPlayers(_players, _lobby);
         for (MurderPartyPlayer mpPlayer : _players) {
             Player player = mpPlayer.getPlayer();
@@ -187,22 +152,23 @@ public class MurderParty extends JavaPlugin implements Listener {
             if (winningTeam == null) {
                 outcome = ChatColor.AQUA + "GAME OVER";
             }
-            this.sendTitle(player, outcome, StringUtils.join(roleStrings, ", "), 50);
+            this.sendTitle(player, outcome, roleInformation, 50);
             player.sendMessage(outcome);
-            player.sendMessage(StringUtils.join(roleStrings, ", "));
+            player.sendMessage(roleInformation);
             player.getInventory().clear();
         }
         _players = new ArrayList<MurderPartyPlayer>();
-        for (java.util.Map.Entry<Entity, MurderPartyPlayer> entry : _bodies.entrySet()) {
-            entry.getKey().remove();
-        }
         List<Entity> entities = _configuration.getWorld().getEntities();
-        for(Entity entity : entities) {
+        for (Disguise disguise : _bodies.keySet()) {
+            disguise.removeDisguise();
+            disguise.getEntity().remove();
+        }
+        for (Entity entity : entities) {
             if (entity instanceof Item && _map.containsLocation(entity.getLocation())) {
                 entity.remove();
             }
         }
-        _bodies = new LinkedHashMap<Entity, MurderPartyPlayer>();
+        _bodies = new LinkedHashMap<Disguise, MurderPartyPlayer>();
         _map = null;
     }
 
@@ -275,6 +241,43 @@ public class MurderParty extends JavaPlugin implements Listener {
         return null;
     }
 
+    public List<String> getRoleInformation(List<MurderPartyPlayer> players) {
+        LinkedHashMap<Role, List<String>> rolesAndPlayerNames = new LinkedHashMap<Role, List<String>>();
+        List<String> roleStrings = new ArrayList<String>();
+        List<String> orderedTeamNames = new ArrayList<String>();
+        List<String> orderedRoleNames = new ArrayList<String>();
+        for (MurderPartyPlayer mpPlayer : players) {
+            Role role = mpPlayer.getRole();
+            if (!orderedTeamNames.contains(role.getTeam().getDisplayName())) {
+                orderedTeamNames.add(role.getTeam().getDisplayName());
+            }
+            List<String> playerNames = new ArrayList<String>();
+            if (rolesAndPlayerNames.containsKey(role)) {
+                playerNames = rolesAndPlayerNames.get(role);
+            } else {
+                orderedRoleNames.add(role.getDisplayName());
+            }
+            playerNames.add(mpPlayer.getPlayer().getDisplayName());
+            rolesAndPlayerNames.put(role, playerNames);
+        }
+        Collections.sort(orderedTeamNames);
+        Collections.sort(orderedRoleNames);
+        for (String teamName : orderedTeamNames) {
+            for (String roleName : orderedRoleNames) {
+                for (java.util.Map.Entry<Role, List<String>> entry : rolesAndPlayerNames.entrySet()) {
+                    Role role = entry.getKey();
+                    if (role.getTeam().getDisplayName() == teamName && role.getDisplayName() == roleName) {
+                        List<String> playerNames = rolesAndPlayerNames.get(role);
+                        Collections.sort(playerNames);
+                        String playerNamesString = StringUtils.join(playerNames, ", ");
+                        roleStrings.add(role.getTeam().getColor() + roleName.toUpperCase() + ": " + playerNamesString + ChatColor.RESET);
+                    }
+                }
+            }
+        }
+        return roleStrings;
+    }
+
     public MurderPartyPlayer createMpPlayer(Player player, Role role) {
         _configuration.debug(player.getName());
         MurderPartyPlayer mpPlayer = new MurderPartyPlayer(player, role);
@@ -294,22 +297,22 @@ public class MurderParty extends JavaPlugin implements Listener {
     public void killPlayer(MurderPartyPlayer victim, MurderPartyPlayer damager) {
         final Player player = victim.getPlayer();
         player.addPotionEffect(new PotionEffect(PotionEffectType.BLINDNESS, 60, 255));
+        player.addPotionEffect(new PotionEffect(PotionEffectType.SLOW, 60, 255));
         this.sendTitle(player, ChatColor.RED + "You have been killed!", null, 40);
-        /*Disguise disguise = new PlayerDisguise(player);
+        Disguise disguise = new PlayerDisguise(player);
         FlagWatcher flagWatcher = disguise.getWatcher();
         flagWatcher.setSleeping(true);
         Entity entity = player.getLocation().getWorld().spawnEntity(player.getLocation(), EntityType.ARMOR_STAND);
         entity.setGravity(false);
         disguise.setEntity(entity);
-        disguise.startDisguise();*/
+        disguise.startDisguise();
         this.setSpectator(player);
         player.getInventory().clear();
-        //_bodies.put(entity, damager);
+        _bodies.put(disguise, damager);
         final List<Team> notEmptyTeams = this.getNotEmptyTeams();
         if (notEmptyTeams.size() == 1) {
             new BukkitRunnable() {
                 public void run() {
-                    Bukkit.getLogger().info("end the game now");
                     endGame(notEmptyTeams.get(0));
                 }
             }.runTaskLater(this, 60);

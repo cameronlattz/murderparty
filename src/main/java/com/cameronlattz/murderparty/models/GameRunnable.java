@@ -100,13 +100,13 @@ public class GameRunnable extends BukkitRunnable {
         }
     }
 
-    public void dropAmmo(int playerCount) {
+    public void spawnAmmo(int playerCount) {
         Location randomLocation = _map.getDropLocations().get((int)Math.floor(Math.random() * _map.getDropLocations().size()));
         Ammo randomAmmo = _droppableAmmos.get((int)Math.floor(Math.random() * _droppableAmmos.size()));
         randomLocation.getWorld().dropItem(randomLocation, randomAmmo.getItemStack());
     }
 
-    public void dropWeapon(int playerCount) {
+    public void spawnWeapon(int playerCount) {
         Location randomLocation = _map.getDropLocations().get((int)Math.floor(Math.random() * _map.getDropLocations().size()));
         Weapon randomWeapon = _droppableWeapons.get((int)Math.floor(Math.random() * _droppableAmmos.size()));
         randomLocation.getWorld().dropItem(randomLocation, randomWeapon.getItemStack());

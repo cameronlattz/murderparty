@@ -8,6 +8,7 @@ import org.bukkit.block.Block;
 import scala.Int;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 
@@ -20,6 +21,14 @@ public class Map implements ObjectInterface {
     private List<Location> _dropLocations = new ArrayList<Location>();
     private int _ticksPerAmmoDrop = 0;
     private int _ticksPerWeaponDrop = 0;
+    static private List<Material> _undroppableBlocks = Arrays.asList(Material.ACACIA_SLAB, Material.ANDESITE_SLAB, Material.BIRCH_SLAB, Material.BRICK_SLAB,
+            Material.COBBLESTONE_SLAB, Material.CUT_RED_SANDSTONE_SLAB, Material.CUT_SANDSTONE_SLAB, Material.DARK_OAK_SLAB, Material.DARK_PRISMARINE_SLAB,
+            Material.DIORITE_SLAB, Material.END_STONE_BRICK_SLAB, Material.GRANITE_SLAB, Material.JUNGLE_SLAB, Material.MOSSY_COBBLESTONE_SLAB,
+            Material.MOSSY_STONE_BRICK_SLAB, Material.NETHER_BRICK_SLAB, Material.OAK_SLAB, Material.PETRIFIED_OAK_SLAB, Material.POLISHED_ANDESITE_SLAB,
+            Material.POLISHED_DIORITE_SLAB, Material.POLISHED_GRANITE_SLAB, Material.PRISMARINE_BRICK_SLAB, Material.PRISMARINE_SLAB, Material.PURPUR_SLAB,
+            Material.RED_NETHER_BRICK_SLAB, Material.RED_SANDSTONE_SLAB, Material.SANDSTONE_SLAB, Material.SMOOTH_QUARTZ_SLAB, Material.SMOOTH_RED_SANDSTONE_SLAB,
+            Material.SMOOTH_SANDSTONE_SLAB, Material.SMOOTH_STONE_SLAB, Material.SPRUCE_SLAB, Material.STONE_BRICK_SLAB, Material.STONE_SLAB, Material.ACACIA_FENCE,
+            Material.BIRCH_FENCE, Material.DARK_OAK_FENCE, Material.JUNGLE_FENCE, Material.NETHER_BRICK_FENCE, Material.OAK_FENCE, Material.SPRUCE_FENCE);
 
     public Map(String name, String displayName, Integer probability, ProtectedRegion region, World world, Integer ticksPerAmmoDrop, Integer ticksPerWeaponDrop) {
         _name = name;
@@ -39,7 +48,7 @@ public class Map implements ObjectInterface {
                     if (block.getType() == Material.JIGSAW) {
                         _spawnLocations.add(new Location(world, x, y, z));
                     }
-                    if (!block.isEmpty() && !block.isLiquid() && !block.isPassable()) {
+                    if (!block.isEmpty() && !block.isLiquid() && !block.isPassable() && !_undroppableBlocks.contains(block.getType())) {
                         Block above1 = block.getRelative(0, 1, 0);
                         Block above2 = block.getRelative(0, 2, 0);
                         if ((above1.isEmpty() || above1.isPassable()) && (above2.isEmpty() || above2.isPassable())) {
